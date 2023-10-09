@@ -1,0 +1,14 @@
+---
+- name: Configure Base
+  # must match hosts.ini
+  hosts: base_rpi
+  become: yes
+  tasks:
+    - name: Copy bashrc
+      copy:
+        src: "dot_files/rpi_bashrc"
+        dest: "/home/ricojia/.bashrc"
+    - name: Copy inputrc
+      copy:
+        src: "dot_files/rpi_inputrc"
+        dest: "/home/ricojia/.inputrc"

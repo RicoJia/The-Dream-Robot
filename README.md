@@ -6,3 +6,7 @@ This project consists of:
 - The Dream Rover (a.k.a coffee bot) 
 - The Dream Arm (a.k.a RJJE Arm)
 - The Dream Hub - central control wensite
+
+
+## Setting up a Base
+1. `cd dream-setup/setup_mobile_base && ansible-playbook -i hosts.ini configure_base.yml`
