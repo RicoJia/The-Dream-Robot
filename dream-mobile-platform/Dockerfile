@@ -7,3 +7,5 @@ RUN apt-get update && apt-get install -y \
     v4l-utils \
     && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /home/The-Dream-Robot
+
