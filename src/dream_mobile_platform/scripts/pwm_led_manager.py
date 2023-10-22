@@ -9,10 +9,6 @@ from pwm_servo_utils import LED_magenta, LED_blue, LED_off
 from pwm_servo_utils import vertical_servo_control, horizontal_servo_control
 from pwm_servo_utils import camera_init
 
-LED_R = 22
-LED_G = 27
-LED_B = 24
-
 class PWM_LED_Manager:
     def __init__(self) -> None:
         general_init()
