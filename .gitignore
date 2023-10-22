@@ -2,4 +2,5 @@ build/*
 devel/*
 logs/*
 .catkin_tools/*
-.catkin_workspace/*
+.catkin_workspace
+__pycache__/

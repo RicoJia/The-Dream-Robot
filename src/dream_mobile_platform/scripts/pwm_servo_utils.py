@@ -4,7 +4,7 @@ import time
 import socket
 import os
 import pigpio
-
+import enum
 
 
 ############## Board setup
@@ -125,20 +125,48 @@ def LED_init():
     GPIO.setup(LED_R, GPIO.OUT)
     GPIO.setup(LED_G, GPIO.OUT)
     GPIO.setup(LED_B, GPIO.OUT)
+    set_LED_state("OFF")
 
-def LED_magenta():
-        # #Magenta
-    GPIO.output(LED_R, GPIO.HIGH)
-    GPIO.output(LED_G, GPIO.LOW)
-    GPIO.output(LED_B, GPIO.HIGH)
+class LEDMapping(enum.Enum):
+    """
+    Following the order of RGB, for usage: just do set_LED_state("red")
+    """
+    RED = (GPIO.HIGH, GPIO.LOW, GPIO.LOW)
+    GREEN = (GPIO.LOW, GPIO.HIGH, GPIO.LOW)
+    BLUE = (GPIO.LOW, GPIO.LOW, GPIO.HIGH)
+    MAGENTA = (GPIO.HIGH, GPIO.LOW, GPIO.HIGH)
+    RED_GREEN = (GPIO.HIGH, GPIO.HIGH, GPIO.LOW)
+    TURQUOISE = (GPIO.LOW, GPIO.HIGH, GPIO.HIGH)
+    RAINBOW = (GPIO.HIGH, GPIO.HIGH, GPIO.HIGH)
+    OFF = (GPIO.LOW, GPIO.LOW, GPIO.LOW)
+    
+def set_LED_state(state: str) -> bool:
+    """
+    Case insensitive method to set LED state. See definition of LEDMapping
+    """
+    normalized_color = state.upper()
+    if normalized_color not in LEDMapping._member_names_:
+        return False
+    r,g,b = LEDMapping[normalized_color].value
+    GPIO.output(LED_R, r)
+    GPIO.output(LED_G, g)
+    GPIO.output(LED_B, b)
+    return True
+    
 
-def LED_blue():
-    #Blue
+def LED_turqoise():
+    # Magenta
     GPIO.output(LED_R, GPIO.LOW)
-    GPIO.output(LED_G, GPIO.LOW)
+    GPIO.output(LED_G, GPIO.HIGH)
+    GPIO.output(LED_B, GPIO.HIGH)
+    
+def LED_white():
+    # Magenta
+    GPIO.output(LED_R, GPIO.HIGH)
+    GPIO.output(LED_G, GPIO.HIGH)
     GPIO.output(LED_B, GPIO.HIGH)
 
-def LED_off():
+def LED_rainbow():
     GPIO.output(LED_R, GPIO.LOW)
     GPIO.output(LED_G, GPIO.LOW)
     GPIO.output(LED_B, GPIO.LOW)
