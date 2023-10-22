@@ -13,9 +13,6 @@ def general_init():
     GPIO.setmode(GPIO.BCM)
     #Ignore warning information
     GPIO.setwarnings(False)
-    #print start information
-    print ("starting ssh on: ", socket.gethostname())
-
 
 def general_cleanup():
     GPIO.cleanup()
