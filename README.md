@@ -10,3 +10,7 @@ This project consists of:
 
 ## Setting up a Base
 1. `cd dream-setup/setup_mobile_base && ansible-playbook -i hosts.ini configure_base.yml`
+2. On host machine, use `sudo arp-scan -l` to find the rpi's IP
+3. `ssh-copy-id ricojia@<RPI_IP>`
+4. `ssh ricojia@<RPI_IP>`
+5. `start_docker` to start container

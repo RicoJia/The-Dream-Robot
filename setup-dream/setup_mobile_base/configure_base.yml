@@ -1,9 +1,43 @@
+# run: ansible-playbook -i hosts.ini configure_base.yml -e "install_all=true"
 ---
 - name: Configure Base
   # must match hosts.ini
   hosts: base_rpi
   become: yes
+  vars: 
+    install_all: false
+    repo_path: /home/ricojia/software/The-Dream-Robot/
+    repo_url: https://github.com/ricojia/The-Dream-Robot.git
   tasks:
+    # - name: Install Docker
+    #   ansible.builtin.shell:
+    #     cmd: curl -sSL https://get.docker.com | sh
+    #   args:
+    #     warn: no
+    #   when: install_all
+    - name: Update Apt Cache
+      apt: 
+        update_cache: yes
+      when: install_all
+    - name: Install Git
+      apt: 
+        name: git
+        state: present
+      when: install_all
+
+    # Pull repo.
+    - name: Check if repo exists
+      stat:
+        path: "{{ repo_path }}"
+      register: repo_folder
+    - name: Clone Repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_path }}"
+        clone: yes
+        update: no
+      when: not repo_folder.stat.exists
+
     - name: Copy bashrc
       copy:
         src: "dot_files/rpi_bashrc"
@@ -12,3 +46,8 @@
       copy:
         src: "dot_files/rpi_inputrc"
         dest: "/home/ricojia/.inputrc"
+    - name: Build_Docker
+      ansible.builtin.shell:
+        cmd: docker build -t dream_mobile_base .
+      args:
+        chdir: /home/ricojia/software/The-Dream-Robot/dream-mobile-platform/

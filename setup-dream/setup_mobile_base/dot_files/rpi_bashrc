@@ -162,3 +162,6 @@ function gd_rico(){
     git push origin --delete "${1}"
 }
 
+function start_docker(){
+    docker run --name my_ros_container -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot --rm -it --network="host" --privileged dream_mobile_base
+}
