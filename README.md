@@ -14,3 +14,6 @@ This project consists of:
 3. `ssh-copy-id ricojia@<RPI_IP>`
 4. `ssh ricojia@<RPI_IP>`
 5. `start_docker` to start container
+
+## Mobile Base
+Please see [here for more details](src/dream_mobile_platform/README.md)
