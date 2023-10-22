@@ -14,7 +14,9 @@ def general_init():
     #Ignore warning information
     GPIO.setwarnings(False)
 
-def general_cleanup():
+def used_pins_cleanup():
+    """Resets pins used by current program back to input mode
+    """
     GPIO.cleanup()
 
 ############## motor controls

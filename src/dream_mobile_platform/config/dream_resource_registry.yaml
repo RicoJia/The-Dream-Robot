@@ -1,0 +1,4 @@
+# The intended use of resource registry is to launch this with all low level drivers
+# Then get params like rospy.get_param("/PARAM/LED_SERVICE")
+PARAM:
+  LED_SERVICE: "/dream/led_service"
