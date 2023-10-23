@@ -1,0 +1,8 @@
+#!/bin/bash
+SESSION_NAME="dream_mobile_base"
+byobu new-session -d -s $SESSION_NAME
+byobu send-keys -t $SESSION_NAME "roslaunch dream_mobile_platform low_level_drivers.launch" C-m
+# Rename the window to "drivers".
+byobu rename-window -t $SESSION_NAME "low_level_drivers"
+# Attach to the session.
+byobu attach -t $SESSION_NAME

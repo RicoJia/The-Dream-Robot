@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     # camera service
     python3-pip \
     python3-catkin-tools \
+    byobu \
     v4l-utils \
     && rm -rf /var/lib/apt/lists/*
 
