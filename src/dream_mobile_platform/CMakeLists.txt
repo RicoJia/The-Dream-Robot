@@ -170,9 +170,10 @@ include_directories(
 #     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 # This command prevents from building WITHOUT root privilege
-add_custom_target(copy_script_target ALL)
-add_custom_command(TARGET copy_script_target
-                   POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/dream_byobu /usr/local/bin/)
+# Legacy copy command for dream_byobu
+# add_custom_target(copy_script_target ALL)
+# add_custom_command(TARGET copy_script_target
+#                    POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/dream_byobu /usr/local/bin/)
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
