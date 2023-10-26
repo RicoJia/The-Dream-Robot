@@ -17,5 +17,7 @@ Features
 1. Go through the set up steps [../../README.md] for basic Rpi set up
 2. See the comments section in [Dockerfile](./Dockerfile) to pull the image and run a container
     - The container should have everything you need to running all functionalities
-3. Start the byobu services using "dream_byobu"
+3. Start the byobu services using "dream_byobu". `dream_byobu <-l> <-b>`
+    - Each input arg is optional. See documentation with `dream_byobu -h`
+    
 
