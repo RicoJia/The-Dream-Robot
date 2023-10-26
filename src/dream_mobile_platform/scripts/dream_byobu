@@ -1,7 +1,43 @@
 #!/bin/bash
 SESSION_NAME="dream_mobile_base"
+# heredoc: a way to define a multiline string. Treated as if a separate file
+# Python also has this multiline docstring
+
+usage(){
+    cat << EOF
+This is the main script that launches all necessary nodes on Rpi. 
+    - l : launch all nodes
+EOF
+}
+
+LAUNCH_ALL=false
+# :l means no input value. have to store option there.
+# \? is to escape ?. ? is a special getopts character
+# getopts does not shift options for you. So you might want to shift by yourself
+# variable name OPTION should match with the getopts arg
+while getopts ":l" OPTION; do
+    case "${OPTION}" in
+        l)
+            LAUNCH_ALL=true
+            echo "LAUNCHING ALL NODES"
+            ;;
+        \?)
+            echo "Invalid Option: -${OPTION}"
+            usage
+            exit 1
+            ;;
+    esac
+done 
+
+# Ternary in bash could be tricky. I'm not using that.
+if [[ $LAUNCH_ALL == true ]]; then 
+    SEND_KEY="C-m"
+else
+    SEND_KEY=""
+fi
+
 byobu new-session -d -s $SESSION_NAME
-byobu send-keys -t $SESSION_NAME "roslaunch dream_mobile_platform low_level_drivers.launch" C-m
+byobu send-keys -t $SESSION_NAME "roslaunch dream_mobile_platform low_level_drivers.launch" ${SEND_KEY}
 # Rename the window to "drivers".
 byobu rename-window -t $SESSION_NAME "low_level_drivers"
 # Attach to the session.
