@@ -17,11 +17,11 @@ while True:
 end = time.time()
 print(f"total time: {end-start}")
 full_rev = int(input("how many full revolutions?"))
-partial_rev = int(input("how many partial revolutions?"))
+partial_rev = float(input("how many partial revolutions?"))
 total_rev = full_rev + partial_rev/14.0
 print(f"total revs: {total_rev}") 
 
-print(f"left right encoder value: ${wer.right_count, wer.left_count}")
+print(f"left right encoder value: ${wer.right_count/total_rev, wer.left_count/total_rev}")
 
 used_pins_cleanup() 
 

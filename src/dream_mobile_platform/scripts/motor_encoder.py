@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 import numpy as np
 import enum
 from pwm_servo_utils import general_init
-import logging
+import time
 
 LEFT_PHASE_A = 7
 RIGHT_PHASE_A = 6
@@ -41,7 +41,7 @@ class WheelEncodersReader:
         GPIO.add_event_detect(LEFT_PHASE_B, GPIO.RISING, self._rising_edge_encoder_counter)
         
     def _get_encoder_phase_values(self, motor_mode: MotorMode):
-        """ Return a list of left encoder pin readings"""
+        """ Return a list of left encoder pin readings, either 0 or 1."""
         if motor_mode == MotorMode.LEFT:
             return [GPIO.input(LEFT_PHASE_A), GPIO.input(LEFT_PHASE_A)]
         elif motor_mode == MotorMode.RIGHT:
@@ -56,15 +56,16 @@ class WheelEncodersReader:
         that is, no matter which pins' rising edge are detected,
         We only care if it's phase A or B. Then, we angle-wrap this value.
         """
+        start = time.time()
         # Get phase values and which count based on left or right
         motor_mode = MotorMode.RIGHT if pin in [RIGHT_PHASE_A, RIGHT_PHASE_B] else MotorMode.LEFT
         phase_a_val, phase_b_val = self._get_encoder_phase_values(motor_mode)
         
         # Update increment based on phase A or B.TODO: to find CCW .
         if pin in [RIGHT_PHASE_A, LEFT_PHASE_A]:
-            increment = 1 if phase_a_val == phase_b_val else -1
-        else:
             increment = -1 if phase_a_val == phase_b_val else 1
+        else:
+            increment = 1 if phase_a_val == phase_b_val else -1
         if motor_mode == MotorMode.LEFT:
             self.left_count += increment 
             # angle wrap -> 1 rev
@@ -74,9 +75,9 @@ class WheelEncodersReader:
         # # Angle wrapping: half angle
         # if np.abs(self.left_count) > 0.5 * LEFT_ENCODER_RESOLUTION:
         #     self.left_count = np.abs(self.left_count) * (np.abs(self.left_count) - LEFT_ENCODER_RESOLUTION)
+        print(f"{time.time() - start}")
 
 if __name__ == "__main__":
-    import time
     wheel_encoders_publisher = WheelEncodersReader()
     while True:
         # right_val = wheel_encoders_publisher._rising_edge_encoder_counter(RIGHT_PHASE_A)
