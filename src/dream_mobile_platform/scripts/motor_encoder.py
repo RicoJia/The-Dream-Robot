@@ -11,25 +11,107 @@ RIGHT_PHASE_B = 17
 # encoder ticks, according to the datasheet, it's 374
 RIGHT_ENCODER_PULSE_PER_REV = 362 #361.8
 # encoder ticks, according to the datasheet, it's 374
-LEFT_ENCODER_PULSE_PER_REV = 367 #367.39
+LEFT_ENCODER_PULSE_PER_REV = 352 #367.39
+# unfortunately, our rpi ticks are different
+LEFT_ENCODER_PULSE_PER_REV_LOOKUP = {
+    5: 352,
+    10: 320,
+}
 
-##########################################################
-# Test Code
-##########################################################
-# Importing modules and classes
-import time
-import numpy as np
-from gpiozero import RotaryEncoder 
-# Assigning parameter values
-PPR = 374  # Pulses Per Revolution of the encoder
 
-class SimpleTestWheelEncoder:
-    def __init__(self) -> None:
-        self.encoder = RotaryEncoder(LEFT_PHASE_A, LEFT_PHASE_B, max_step=0)
-        #TODO Remember to remove
-        print(f'Rico: {self.encoder} initialized')
+#########################################################
+# DMA Test Code
+#########################################################
+# !/usr/bin/env python
+
+import pigpio
+
+class PigpioDecoder:
+    def __init__(self): 
+        self.pi = pigpio.pi() 
+        self.gpioA = LEFT_PHASE_A
+        self.gpioB = LEFT_PHASE_B
+
+        self.levA = 0
+        self.levB = 0
+
+        self.lastGpio = None
+
+        self.pi.set_mode(self.gpioA, pigpio.INPUT)
+        self.pi.set_mode(self.gpioB, pigpio.INPUT)
+
+        self.pi.set_pull_up_down(self.gpioA, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.gpioB, pigpio.PUD_UP)
+
+        self.cbA = self.pi.callback(self.gpioA, pigpio.EITHER_EDGE, self._pulse)
+        self.cbB = self.pi.callback(self.gpioB, pigpio.EITHER_EDGE, self._pulse)
+        self.count = 0 
+    def _pulse(self, gpio, level, tick):
+      """
+      Decode the rotary encoder pulse.
+
+                   +---------+         +---------+      0
+                   |         |         |         |
+         A         |         |         |         |
+                   |         |         |         |
+         +---------+         +---------+         +----- 1
+
+             +---------+         +---------+            0
+             |         |         |         |
+         B   |         |         |         |
+             |         |         |         |
+         ----+         +---------+         +---------+  1
+      """
+      if gpio == self.gpioA:
+         self.levA = level
+      else:
+         self.levB = level
+
+      if gpio != self.lastGpio: # debounce
+        self.lastGpio = gpio
+
+        if  gpio == self.gpioA:
+            if level == 1:
+                if self.levB == 1:  self.count += 1
+                else:               self.count += -1
+            else: # level == 0:
+                if self.levB == 0:  self.count += 1
+                else:               self.count += -1
+        else: # gpio == self.gpioB
+            if level == 1:
+                if self.levA == 1:  self.count += -1
+                else:               self.count += 1
+            else: # level == 0:
+                if self.levA == 0:  self.count += -1
+                else:               self.count += 1
     def get_angle(self):
-        return 360.0 * self.encoder.steps / PPR
+        return self.count
+
+    def cancel(self):
+        self.cbA.cancel()
+        self.cbB.cancel()
+
+#########################################################
+# Test Code
+#########################################################
+# import time
+# import numpy as np
+# from gpiozero import RotaryEncoder 
+# # Assigning parameter values
+# PPR = 374  # Pulses Per Revolution of the encoder
+
+# class SimpleTestWheelEncoder:
+#     def __init__(self) -> None:
+#         self.encoder = RotaryEncoder(LEFT_PHASE_A, LEFT_PHASE_B, max_steps=0)
+#         #TODO Remember to remove
+#         print(f'Rico: {self.encoder} initialized')
+#     def get_angle(self):
+#         # return 360.0 * self.encoder.steps / PPR
+#         return -self.encoder.steps
+
+# ##########################################################
+# # Prod Code
+# ##########################################################
 
 # class MotorMode(enum.Enum):
 #     LEFT = enum.auto()
@@ -89,7 +171,10 @@ class SimpleTestWheelEncoder:
 #             # angle wrap -> 1 rev
 #         else:
 #             self.right_count += increment
-#         print(f"{time.time() - start}")
+    
+    
+#     def get_angle(self):
+#         return self.left_count
 
 # if __name__ == "__main__":
 #     wheel_encoders_publisher = WheelEncodersReader()
