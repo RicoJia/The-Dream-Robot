@@ -10,7 +10,7 @@ class PWM_LED_Manager:
     def __init__(self) -> None:
         general_init()
         LED_init()
-        self.led_server = rospy.Service(rospy.get_param("/PARAM/LED_SERVICE", '/toggle_led'), ToggleLED, self.toggle_led)
+        self.led_server = rospy.Service(rospy.get_param("/SERVICE/LED_SERVICE"), ToggleLED, self.toggle_led)
 
     def cleanup(self):
         used_pins_cleanup()
@@ -20,7 +20,7 @@ class PWM_LED_Manager:
         return set_LED_state(req.state)
 
 if __name__ == '__main__':
-    rospy.init_node('pwm_led_manager')
+    rospy.init_node('~pwm_led_manager')
     pwm_led_manager = PWM_LED_Manager()
     rospy.on_shutdown(pwm_led_manager.cleanup)
     rospy.spin()

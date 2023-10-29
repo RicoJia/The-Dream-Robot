@@ -1,6 +1,9 @@
 <launch>
 
   <rosparam file="$(find dream_mobile_platform)/config/dream_resource_registry.yaml" command="load"/>
-  <node pkg="dream_mobile_platform" type="pwm_led_manager.py" name="pwm_led_manager" output="screen"/>
+  <group ns="dream">
+    <node pkg="dream_mobile_platform" type="pwm_led_manager.py" name="pwm_led_manager" output="screen"/>
+    <node pkg="dream_mobile_platform" type="motor_encoder.py" name="encoder_reader" output="screen"/>
+</group>
 
 </launch>
