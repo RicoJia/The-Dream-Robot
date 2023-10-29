@@ -11,12 +11,11 @@ RIGHT_PHASE_B = 17
 # encoder ticks, according to the datasheet, it's 374
 RIGHT_ENCODER_PULSE_PER_REV = 362 #361.8
 # encoder ticks, according to the datasheet, it's 374
-LEFT_ENCODER_PULSE_PER_REV = 367 #367.39
+LEFT_ENCODER_PULSE_PER_REV = 352 #367.39
 
-##########################################################
+#########################################################
 # Test Code
-##########################################################
-# Importing modules and classes
+#########################################################
 import time
 import numpy as np
 from gpiozero import RotaryEncoder 
@@ -25,11 +24,16 @@ PPR = 374  # Pulses Per Revolution of the encoder
 
 class SimpleTestWheelEncoder:
     def __init__(self) -> None:
-        self.encoder = RotaryEncoder(LEFT_PHASE_A, LEFT_PHASE_B, max_step=0)
+        self.encoder = RotaryEncoder(LEFT_PHASE_A, LEFT_PHASE_B, max_steps=0)
         #TODO Remember to remove
         print(f'Rico: {self.encoder} initialized')
     def get_angle(self):
-        return 360.0 * self.encoder.steps / PPR
+        # return 360.0 * self.encoder.steps / PPR
+        return -self.encoder.steps
+
+# ##########################################################
+# # Prod Code
+# ##########################################################
 
 # class MotorMode(enum.Enum):
 #     LEFT = enum.auto()
@@ -89,7 +93,10 @@ class SimpleTestWheelEncoder:
 #             # angle wrap -> 1 rev
 #         else:
 #             self.right_count += increment
-#         print(f"{time.time() - start}")
+    
+    
+#     def get_angle(self):
+#         return self.left_count
 
 # if __name__ == "__main__":
 #     wheel_encoders_publisher = WheelEncodersReader()
