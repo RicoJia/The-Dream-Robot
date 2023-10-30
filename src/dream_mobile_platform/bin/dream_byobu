@@ -14,11 +14,11 @@ EOF
 DO_CATKIN_BUILD=false
 LAUNCH_ALL=false
 
-# :l means no input value. have to store option there.
+# l means no input value. have to store option there. otherwise, do l: and provide an input value
 # \? is to escape ?. ? is a special getopts character
 # getopts does not shift options for you. So you might want to shift by yourself
 # variable name OPTION should match with the getopts arg
-while getopts ":l:b" OPTION; do
+while getopts "lb" OPTION; do
     case "${OPTION}" in
         b)
             DO_CATKIN_BUILD=true
@@ -39,12 +39,13 @@ done
 # do catkin build
 if [[ $DO_CATKIN_BUILD == true ]]; then
     # WORKDIRECTORY is defined in the dockerfile
-    cd ${WORKDIRECTORY} && catkin build && source ${WORKDIRECTORY}/devel/setup.bash
+    cd ${WORKDIRECTORY} && catkin build
     if [[ $? -ne 0 ]]; then
         echo "catkin build failed"
         exit 1
     fi
 fi
+
 
 
 # Ternary in bash could be tricky. I'm not using that.
@@ -55,7 +56,10 @@ else
 fi
 
 byobu new-session -d -s $SESSION_NAME
-byobu send-keys -t $SESSION_NAME "roslaunch dream_mobile_platform low_level_drivers.launch" ${SEND_KEY}
+# Byobu window processes are children of the tmux server process.
+
+
+byobu send-keys -t $SESSION_NAME "sudo pigpiod && roslaunch dream_mobile_platform low_level_drivers.launch" ${SEND_KEY}
 # Rename the window to "drivers".
 byobu rename-window -t $SESSION_NAME "low_level_drivers"
 # Attach to the session.

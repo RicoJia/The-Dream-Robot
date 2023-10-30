@@ -14,6 +14,8 @@ RIGHT_PHASE_B = 17
 PPR = 374
 # Counts Per Revolution
 CPR = PPR * 4
+# in meter
+WHEEL_DIAMETER=0.041
 
 ##########################################################
 # Prod Code
@@ -92,9 +94,10 @@ class EncoderReader:
     def __init__(self) -> None:
         self._left_decoder = PigpioDecoder(LEFT_PHASE_A, LEFT_PHASE_B)
         self._right_decoder = PigpioDecoder(RIGHT_PHASE_A, RIGHT_PHASE_B)
-        self._encoder_pub = rospy.Publisher(rospy.get_param("/SERVICE/ENCODER_STATUS"), EncoderMsg, queue_size=1)
+        self._encoder_pub = rospy.Publisher(rospy.get_param("/TOPIC/ENCODER_STATUS"), EncoderMsg, queue_size=1)
         print(f'{self.__class__.__name__} has been initialized')
     def pub(self):
+        print(self._left_decoder.get_angle(), self._right_decoder.get_angle())
         msg = EncoderMsg(
             self._left_decoder.get_angle(),
             self._right_decoder.get_angle()
@@ -104,7 +107,7 @@ class EncoderReader:
 if __name__ == '__main__':
     e = EncoderReader()
     rospy.init_node('~encoder_reader')
-    r = rospy.Rate(10)
+    r = rospy.Rate(50)
     while not rospy.is_shutdown():
         e.pub()
         r.sleep()
