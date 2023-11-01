@@ -42,7 +42,8 @@ ENV PATH="${WORKDIRECTORY}/src/dream_mobile_platform/bin:${PATH}"
 WORKDIR ${WORKDIRECTORY}
 
 # Must use 
-RUN bash -c  "source /opt/ros/noetic/setup.bash"
+RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
+    echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
 CMD /bin/bash
 
