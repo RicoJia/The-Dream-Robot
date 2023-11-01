@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade opencv-python==4.6.0.66 websockets==10.4 RPi.GPIO pip install pigpio
+RUN pip3 install --upgrade opencv-python==4.6.0.66 websockets==10.4 RPi.GPIO posix_ipc
 
 RUN wget https://github.com/joan2937/pigpio/archive/master.zip && unzip master.zip && cd pigpio-master && make && sudo make install
 
