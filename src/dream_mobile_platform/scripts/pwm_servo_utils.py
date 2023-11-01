@@ -3,9 +3,16 @@ import RPi.GPIO as GPIO
 import time
 import socket
 import os
-import pigpio
 import enum
 
+############## motor controls
+#Definition of  motor pins
+IN1 = 20
+IN2 = 21
+IN3 = 19
+IN4 = 26
+ENA = 16
+ENB = 13
 
 ############## Board setup
 def general_init():
@@ -18,15 +25,6 @@ def used_pins_cleanup():
     """Resets pins used by current program back to input mode
     """
     GPIO.cleanup()
-
-############## motor controls
-#Definition of  motor pins
-IN1 = 20
-IN2 = 21
-IN3 = 19
-IN4 = 26
-ENA = 16
-ENB = 13
 
 def motors_init():
     global pwm_ENA
