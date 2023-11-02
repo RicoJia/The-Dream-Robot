@@ -24,15 +24,17 @@ class ShmSub:
         th.start()
     def _run(self):
         while not rospy.is_shutdown():
-            # self.sem.acquire()
+            rospy.sleep(0.02)
+            self.sem.acquire()
             try:
                 packed_data = self.mmap[:4]
                 msg = struct.unpack('f', packed_data)[0]
                 self.cb(msg)
             finally:
-                # self.sem.release()
+                self.sem.release()
                 pass
     def cleanup(self):
+        self.mmap.close()
         self.sem.unlink()
         self.shm.unlink()
 
@@ -53,11 +55,11 @@ class ShmPub:
         packed_data = struct.pack('f', msg)
         if len(packed_data) > SHM_SIZE:
             raise ValueError('Message too large')
-        # self.sem.acquire()
+        self.sem.acquire()
         try:
             self.mmap[:len(packed_data)] = packed_data
         finally:
-            # self.sem.release()
+            self.sem.release()
             pass
     def cleanup(self):
         self.mmap.close()
@@ -93,10 +95,10 @@ def check_pub_sub(i):
         rospy.sleep(0.02)
     
 if __name__ == '__main__':
-    # rospy.init_node('compare_shm_ros_pubsub', anonymous=True)
+    rospy.init_node('compare_shm_ros_pubsub', anonymous=True)
     threads = [
-    Thread(target=check_shm_pub_sub, args=(i,), daemon=True) for i in range(10)]
-    # Thread(target=check_pub_sub, args=(i,), daemon=True) for i in range(10)]
+    # Thread(target=check_shm_pub_sub, args=(i,), daemon=True) for i in range(10)]
+    Thread(target=check_pub_sub, args=(i,), daemon=True) for i in range(10)]
     [t.start() for t in threads]
     # rospy.spin()
     while True:
