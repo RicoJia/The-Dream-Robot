@@ -7,7 +7,6 @@ from pwm_servo_utils import general_init
 # TODO: to replace
 from simple_robotics_python_utils.shared_memory_pub_sub import SharedMemoryPub, Rate
 import rospy
-from dream_mobile_platform.msg import EncoderMsg
 
 LEFT_PHASE_A = 7
 RIGHT_PHASE_A = 6

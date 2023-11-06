@@ -3,8 +3,8 @@
 import pigpio
 import time
 import rospy
-from dream_mobile_platform.msg import EncoderMsg
 
+from simple_robotics_python_utils.shared_memory_pub_sub import SharedMemorySub
 import posix_ipc
 import mmap
 import struct
@@ -56,7 +56,13 @@ class PigpioMotorControl:
 if __name__ == "__main__":
     rospy.init_node("test_motor")
     pmc = PigpioMotorControl()
-
+    encoder_sub = SharedMemorySub(
+        topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
+        data_type=float,
+        arr_size=2,
+        read_frequency=10,
+        verbose=True
+    )
     start = time.time()
     stop = False
     LEFT_PWM = 20

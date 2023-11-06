@@ -38,7 +38,7 @@ done
 
 # do catkin build
 if [[ $DO_CATKIN_BUILD == true ]]; then
-    WORKDIRECTORY is defined in the dockerfile
+    # WORKDIRECTORY is defined in the dockerfile
     cd ${WORKDIRECTORY} && catkin build
     if [[ $? -ne 0 ]]; then
         echo "catkin build failed"
