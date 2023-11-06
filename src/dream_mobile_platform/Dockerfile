@@ -4,6 +4,8 @@
 # Build Procedure:
 # On dev machine:
 # docker buildx build --platform linux/arm64/v8 -t rpi-dream-mobile-platform . --load
+# If you see error that cannot pull images, then do:
+# docker kill buildx_buildkit_rpi-builder0
 # docker tag rpi-dream-mobile-platform:latest ricojia/rpi-dream-mobile-platform:latest
 # docker push ricojia/rpi-dream-mobile-platform:latest
 # On rpi: 
