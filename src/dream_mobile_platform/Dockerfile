@@ -14,6 +14,7 @@
 #   --name my_ros_container \
 #   --rm \
 #   -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot \
+#   -v ~/.ssh:/root/.ssh \
 #   -it \
 #   --network="host" \
 #   --privileged \
