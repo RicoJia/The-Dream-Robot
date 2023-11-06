@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pigpio
 import time
 import rospy
@@ -52,24 +54,8 @@ class PigpioMotorControl:
         print(f'{self.__class__.__name__} cleaned up')
 
 if __name__ == "__main__":
+    rospy.init_node("test_motor")
     pmc = PigpioMotorControl()
-    try:
-        # Try to open existing shared memory
-        left_sh_memory  = posix_ipc.SharedMemory(LEFT_SH_MEMORY)
-    except posix_ipc.ExistentialError:
-        # If it doesn't exist, create it
-        left_sh_memory = posix_ipc.SharedMemory(LEFT_SH_MEMORY, flags=posix_ipc.O_CREX, mode=0o777, size=SH_SIZE)
-    # Map the shared memory to a memory view
-    left_mapfile = mmap.mmap(left_sh_memory.fd, left_sh_memory.size)
-    # Serialize and write the float to shared memory
-    my_float = 3.141592653589793
-    # ??? what does struct do
-    packed_float = struct.pack('f', my_float)
-    left_mapfile.write(packed_float)
-
-    # Close the memory map and shared memory file descriptor
-    left_mapfile.close()
-    left_sh_memory.close_fd()
 
     start = time.time()
     stop = False
@@ -78,21 +64,6 @@ if __name__ == "__main__":
 
     last_left = 0
     last_right = 0
-    def cb(msg: EncoderMsg):
-        global LEFT_PWM
-        global RIGHT_PWM, last_left, last_right
-        left, right = msg.left, msg.right
-        # #TODO Remember to remove
-        # print(f'Rico: {left, right}')
-        # if left < last_left:
-        #     LEFT_PWM = 0
-        # last_left = left
-        # if right < last_right:
-        #     RIGHT_PWM = 0
-        # last_right = right
-
-    rospy.init_node("test_motor")
-    sub = rospy.Subscriber("/dream/encoder_status", EncoderMsg, cb)
 
     while not rospy.is_shutdown():
         # forward(LEFT_PWM, RIGHT_PWM)

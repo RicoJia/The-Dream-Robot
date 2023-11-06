@@ -3,5 +3,6 @@
 SERVICE:
   LED_SERVICE: "/dream/led_service"
 
-TOPIC:
-  ENCODER_STATUS: "/dream/encoder_status"
+SHM_TOPIC:
+  # NOTE: there must be only one slash, and it should be at the beginning
+  ENCODER_STATUS: "/encoder_status"

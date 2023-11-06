@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import pigpio
-import rospy
 import numpy as np
 from pwm_servo_utils import general_init
+
+# TODO: to replace
+from simple_robotics_python_utils.shared_memory_pub_sub import SharedMemoryPub, Rate
+import rospy
 from dream_mobile_platform.msg import EncoderMsg
 
 LEFT_PHASE_A = 7
@@ -94,20 +97,23 @@ class EncoderReader:
     def __init__(self) -> None:
         self._left_decoder = PigpioDecoder(LEFT_PHASE_A, LEFT_PHASE_B)
         self._right_decoder = PigpioDecoder(RIGHT_PHASE_A, RIGHT_PHASE_B)
-        self._encoder_pub = rospy.Publisher(rospy.get_param("/TOPIC/ENCODER_STATUS"), EncoderMsg, queue_size=1)
+        self._encoder_pub = SharedMemoryPub(
+            topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
+            data_type=float,
+            arr_size=2,
+            verbose=True
+        )
         print(f'{self.__class__.__name__} has been initialized')
     def pub(self):
-        print(self._left_decoder.get_angle(), self._right_decoder.get_angle())
-        msg = EncoderMsg(
+        self._encoder_pub.publish([
             self._left_decoder.get_angle(),
             self._right_decoder.get_angle()
-        ) 
-        self._encoder_pub.publish(msg)
+        ])
 
 if __name__ == '__main__':
     e = EncoderReader()
     rospy.init_node('~encoder_reader')
-    r = rospy.Rate(50)
+    r = Rate(50)
     while not rospy.is_shutdown():
         e.pub()
         r.sleep()
