@@ -4,9 +4,8 @@ import pigpio
 import numpy as np
 from pwm_servo_utils import general_init
 
-from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
-    SharedMemoryPub
-)
+from simple_robotics_python_utils.pubsub.pub_sub_utils import Rate
+from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 import rospy
 
 LEFT_PHASE_A = 7
