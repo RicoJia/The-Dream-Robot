@@ -12,7 +12,7 @@ if __name__ == "__main__":
         topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
         data_type = float,
         arr_size = 2,
-        read_frequency=50,
+        read_frequency=10,
         callback = lambda speeds: print(speeds),
         debug = False
     )
@@ -28,4 +28,6 @@ if __name__ == "__main__":
     while not rospy.is_shutdown():
         pwm = (pwm + 5) % 30
         motor_commands_pub.publish([pwm, pwm])
+        #TODO Remember to remove
+        print(f'pwm: {pwm}')
         rospy.sleep(3)
