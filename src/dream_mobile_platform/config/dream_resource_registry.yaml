@@ -6,3 +6,4 @@ SERVICE:
 SHM_TOPIC:
   # NOTE: there must be only one slash, and it should be at the beginning
   ENCODER_STATUS: "/encoder_status"
+  MOTOR_COMMANDS: "/motor_commands"
