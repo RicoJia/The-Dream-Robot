@@ -4,8 +4,8 @@ import pigpio
 import numpy as np
 from pwm_servo_utils import general_init
 
-# TODO: to replace
-from simple_robotics_python_utils.shared_memory_pub_sub import SharedMemoryPub, Rate
+from simple_robotics_python_utils.pubsub.pub_sub_utils import Rate
+from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 import rospy
 
 LEFT_PHASE_A = 7
@@ -111,7 +111,11 @@ class EncoderReader:
             topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
             data_type=float,
             arr_size=2,
+<<<<<<< HEAD
             verbose=True,
+=======
+            debug=False
+>>>>>>> c9e1d888ef1d89690f94e25c38ef65e0c5868608
         )
         print(f"{self.__class__.__name__} has been initialized")
 
