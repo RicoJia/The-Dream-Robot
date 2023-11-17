@@ -16,10 +16,11 @@ IN4 = 26
 ENA = 16
 ENB = 13
 
-LEFT_SH_MEMORY="/LEFT_SH_MEMORY"
-RIGHT_SH_MEMORY="/RIGHT_SH_MEMORY"
+LEFT_SH_MEMORY = "/LEFT_SH_MEMORY"
+RIGHT_SH_MEMORY = "/RIGHT_SH_MEMORY"
 SH_SIZE = 4096
-    
+
+
 class PigpioMotorControl:
     def __init__(self):
         self.pi = pigpio.pi()
@@ -35,7 +36,7 @@ class PigpioMotorControl:
         # Start with a duty cycle of 0
         self.pi.set_PWM_dutycycle(ENA, 0)
         self.pi.set_PWM_dutycycle(ENB, 0)
-        print(f'{self.__class__.__name__} started')
+        print(f"{self.__class__.__name__} started")
 
     def forward(self, leftspeed, rightspeed):
         self.pi.write(IN1, 1)
@@ -51,7 +52,8 @@ class PigpioMotorControl:
         self.pi.set_PWM_dutycycle(ENA, 0)
         self.pi.set_PWM_dutycycle(ENB, 0)
         self.pi.stop()
-        print(f'{self.__class__.__name__} cleaned up')
+        print(f"{self.__class__.__name__} cleaned up")
+
 
 if __name__ == "__main__":
     rospy.init_node("test_motor")
@@ -61,7 +63,7 @@ if __name__ == "__main__":
         data_type=float,
         arr_size=2,
         read_frequency=10,
-        verbose=True
+        verbose=True,
     )
     start = time.time()
     stop = False

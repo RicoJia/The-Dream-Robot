@@ -17,14 +17,15 @@ PPR = 374
 # Counts Per Revolution
 CPR = PPR * 4
 # in meter
-WHEEL_DIAMETER=0.041
+WHEEL_DIAMETER = 0.041
+
 
 ##########################################################
 # Prod Code
 ##########################################################
 class PigpioDecoder:
-    def __init__(self, gpioA, gpioB): 
-        self.pi = pigpio.pi() 
+    def __init__(self, gpioA, gpioB):
+        self.pi = pigpio.pi()
         self.gpioA = gpioA
         self.gpioB = gpioB
 
@@ -41,46 +42,55 @@ class PigpioDecoder:
 
         self.cbA = self.pi.callback(self.gpioA, pigpio.EITHER_EDGE, self._pulse)
         self.cbB = self.pi.callback(self.gpioB, pigpio.EITHER_EDGE, self._pulse)
-        self.count = 0 
+        self.count = 0
+
     def _pulse(self, gpio, level, tick):
-      """
-      Decode the rotary encoder pulse on interrupts, then angle wrap it
+        """
+        Decode the rotary encoder pulse on interrupts, then angle wrap it
 
-                   +---------+         +---------+      0
-                   |         |         |         |
-         A         |         |         |         |
-                   |         |         |         |
-         +---------+         +---------+         +----- 1
+                     +---------+         +---------+      0
+                     |         |         |         |
+           A         |         |         |         |
+                     |         |         |         |
+           +---------+         +---------+         +----- 1
 
-             +---------+         +---------+            0
-             |         |         |         |
-         B   |         |         |         |
-             |         |         |         |
-         ----+         +---------+         +---------+  1
-      """
-      if gpio == self.gpioA:
-         self.levA = level
-      else:
-         self.levB = level
+               +---------+         +---------+            0
+               |         |         |         |
+           B   |         |         |         |
+               |         |         |         |
+           ----+         +---------+         +---------+  1
+        """
+        if gpio == self.gpioA:
+            self.levA = level
+        else:
+            self.levB = level
 
-      if gpio != self.lastGpio: # debounce
-        self.lastGpio = gpio
+        if gpio != self.lastGpio:  # debounce
+            self.lastGpio = gpio
 
-        if  gpio == self.gpioA:
-            if level == 1:
-                if self.levB == 1:  self.count += 1
-                else:               self.count += -1
-            else: # level == 0:
-                if self.levB == 0:  self.count += 1
-                else:               self.count += -1
-        else: # gpio == self.gpioB
-            if level == 1:
-                if self.levA == 1:  self.count += -1
-                else:               self.count += 1
-            else: # level == 0:
-                if self.levA == 0:  self.count += -1
-                else:               self.count += 1
-        self.count = self._angle_wrap(self.count)
+            if gpio == self.gpioA:
+                if level == 1:
+                    if self.levB == 1:
+                        self.count += 1
+                    else:
+                        self.count += -1
+                else:  # level == 0:
+                    if self.levB == 0:
+                        self.count += 1
+                    else:
+                        self.count += -1
+            else:  # gpio == self.gpioB
+                if level == 1:
+                    if self.levA == 1:
+                        self.count += -1
+                    else:
+                        self.count += 1
+                else:  # level == 0:
+                    if self.levA == 0:
+                        self.count += -1
+                    else:
+                        self.count += 1
+            self.count = self._angle_wrap(self.count)
 
     def get_angle(self):
         return self.count
@@ -92,6 +102,7 @@ class PigpioDecoder:
         self.cbA.cancel()
         self.cbB.cancel()
 
+
 class EncoderReader:
     def __init__(self) -> None:
         self._left_decoder = PigpioDecoder(LEFT_PHASE_A, LEFT_PHASE_B)
@@ -100,18 +111,19 @@ class EncoderReader:
             topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
             data_type=float,
             arr_size=2,
-            verbose=True
+            verbose=True,
         )
-        print(f'{self.__class__.__name__} has been initialized')
-    def pub(self):
-        self._encoder_pub.publish([
-            self._left_decoder.get_angle(),
-            self._right_decoder.get_angle()
-        ])
+        print(f"{self.__class__.__name__} has been initialized")
 
-if __name__ == '__main__':
+    def pub(self):
+        self._encoder_pub.publish(
+            [self._left_decoder.get_angle(), self._right_decoder.get_angle()]
+        )
+
+
+if __name__ == "__main__":
     e = EncoderReader()
-    rospy.init_node('~encoder_reader')
+    rospy.init_node("~encoder_reader")
     r = Rate(50)
     while not rospy.is_shutdown():
         e.pub()
