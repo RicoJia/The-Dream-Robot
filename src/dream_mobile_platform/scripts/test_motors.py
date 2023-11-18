@@ -4,15 +4,16 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
     SharedMemoryPub
 )
 import rospy
+# we want to save params: P, I, D.
 
 if __name__ == "__main__":
     rospy.init_node("test_motors")
     
     encoder_status_sub = SharedMemorySub(
-        topic=rospy.get_param("/SHM_TOPIC/ENCODER_STATUS"),
+        topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
         data_type = float,
         arr_size = 2,
-        read_frequency=10,
+        read_frequency=rospy.get_param("/PARAMS/ENCODER_PUB_FREQUENCY"),
         callback = lambda speeds: print(speeds),
         debug = False
     )
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     )
 
     pwm = 0
+    rate = rospy.Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
     while not rospy.is_shutdown():
         pwm = (pwm + 5) % 30
         motor_commands_pub.publish([pwm, pwm])
