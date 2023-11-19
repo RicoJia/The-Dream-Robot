@@ -6,7 +6,7 @@ import os
 import enum
 
 ############## motor controls
-#Definition of  motor pins
+# Definition of  motor pins
 IN1 = 20
 IN2 = 21
 IN3 = 19
@@ -14,37 +14,40 @@ IN4 = 26
 ENA = 16
 ENB = 13
 
+
 ############## Board setup
 def general_init():
-    #Set the GPIO port to BCM encoding mode
+    # Set the GPIO port to BCM encoding mode
     GPIO.setmode(GPIO.BCM)
-    #Ignore warning information
+    # Ignore warning information
     GPIO.setwarnings(False)
 
+
 def used_pins_cleanup():
-    """Resets pins used by current program back to input mode
-    """
+    """Resets pins used by current program back to input mode"""
     GPIO.cleanup()
+
 
 def motors_init():
     global pwm_ENA
     global pwm_ENB
     global pwm_servo_horizontal
     global pwm_servo_vertical
-    GPIO.setup(ENA,GPIO.OUT,initial=GPIO.HIGH)
-    GPIO.setup(IN1,GPIO.OUT,initial=GPIO.LOW)
-    GPIO.setup(IN2,GPIO.OUT,initial=GPIO.LOW)
-    GPIO.setup(ENB,GPIO.OUT,initial=GPIO.HIGH)
-    GPIO.setup(IN3,GPIO.OUT,initial=GPIO.LOW)
-    GPIO.setup(IN4,GPIO.OUT,initial=GPIO.LOW)
+    GPIO.setup(ENA, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(IN1, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(IN2, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(ENB, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(IN3, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(IN4, GPIO.OUT, initial=GPIO.LOW)
 
-    #Set the PWM pin and frequency is 2000hz
+    # Set the PWM pin and frequency is 2000hz
     pwm_ENA = GPIO.PWM(ENA, 2000)
     pwm_ENB = GPIO.PWM(ENB, 2000)
     pwm_ENA.start(0)
     pwm_ENB.start(0)
 
-#advance
+
+# advance
 def forward(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
@@ -53,7 +56,8 @@ def forward(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#back
+
+# back
 def backward(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
@@ -62,7 +66,8 @@ def backward(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#turn left
+
+# turn left
 def left(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.LOW)
@@ -71,7 +76,8 @@ def left(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#trun right
+
+# trun right
 def right(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
@@ -80,7 +86,8 @@ def right(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#turn left in place
+
+# turn left in place
 def spin_left(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
@@ -89,7 +96,8 @@ def spin_left(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#turn right in place
+
+# turn right in place
 def spin_right(leftspeed, rightspeed):
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
@@ -98,37 +106,41 @@ def spin_right(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
-#brake
-def brake():
-   GPIO.output(IN1, GPIO.LOW)
-   GPIO.output(IN2, GPIO.LOW)
-   GPIO.output(IN3, GPIO.LOW)
-   GPIO.output(IN4, GPIO.LOW)
 
-#motor clean up
+# brake
+def brake():
+    GPIO.output(IN1, GPIO.LOW)
+    GPIO.output(IN2, GPIO.LOW)
+    GPIO.output(IN3, GPIO.LOW)
+    GPIO.output(IN4, GPIO.LOW)
+
+
+# motor clean up
 def motors_cleanup():
     pwm_ENA.stop()
     pwm_ENB.stop()
 
 
-
 ###############LEDs
-#Definition of RGB module pins
+# Definition of RGB module pins
 LED_R = 22
 LED_G = 27
 LED_B = 24
 
-#initialize LEDs
+
+# initialize LEDs
 def LED_init():
     GPIO.setup(LED_R, GPIO.OUT)
     GPIO.setup(LED_G, GPIO.OUT)
     GPIO.setup(LED_B, GPIO.OUT)
     set_LED_state("OFF")
 
+
 class LEDMapping(enum.Enum):
     """
     Following the order of RGB, for usage: just do set_LED_state("red")
     """
+
     RED = (GPIO.HIGH, GPIO.LOW, GPIO.LOW)
     GREEN = (GPIO.LOW, GPIO.HIGH, GPIO.LOW)
     BLUE = (GPIO.LOW, GPIO.LOW, GPIO.HIGH)
@@ -137,7 +149,8 @@ class LEDMapping(enum.Enum):
     TURQUOISE = (GPIO.LOW, GPIO.HIGH, GPIO.HIGH)
     RAINBOW = (GPIO.HIGH, GPIO.HIGH, GPIO.HIGH)
     OFF = (GPIO.LOW, GPIO.LOW, GPIO.LOW)
-    
+
+
 def set_LED_state(state: str) -> bool:
     """
     Case insensitive method to set LED state. See definition of LEDMapping
@@ -145,24 +158,26 @@ def set_LED_state(state: str) -> bool:
     normalized_color = state.upper()
     if normalized_color not in LEDMapping._member_names_:
         return False
-    r,g,b = LEDMapping[normalized_color].value
+    r, g, b = LEDMapping[normalized_color].value
     GPIO.output(LED_R, r)
     GPIO.output(LED_G, g)
     GPIO.output(LED_B, b)
     return True
-    
+
 
 def LED_turqoise():
     # Magenta
     GPIO.output(LED_R, GPIO.LOW)
     GPIO.output(LED_G, GPIO.HIGH)
     GPIO.output(LED_B, GPIO.HIGH)
-    
+
+
 def LED_white():
     # Magenta
     GPIO.output(LED_R, GPIO.HIGH)
     GPIO.output(LED_G, GPIO.HIGH)
     GPIO.output(LED_B, GPIO.HIGH)
+
 
 def LED_rainbow():
     GPIO.output(LED_R, GPIO.LOW)
@@ -170,15 +185,13 @@ def LED_rainbow():
     GPIO.output(LED_B, GPIO.LOW)
 
 
-
-
 ##################### Servos
-#Definition of servo pin    J2(BCM 11) is horizontal, J3(BCM 9) is vertical
+# Definition of servo pin    J2(BCM 11) is horizontal, J3(BCM 9) is vertical
 Servo_Horizontal_Pin = 11
 Servo_Vertical_Pin = 9
 
-def servos_init(initial_yaw, initial_pitch):
 
+def servos_init(initial_yaw, initial_pitch):
     # GPIO.setup(Servo_Horizontal_Pin, GPIO.OUT)
     # GPIO.setup(Servo_Vertical_Pin, GPIO.OUT)
     # global pwm_servo_horizontal
@@ -190,10 +203,10 @@ def servos_init(initial_yaw, initial_pitch):
     # vertical_servo_control(initial_pitch)
     # horizontal_servo_control(initial_yaw)
 
-    #to call $sudo pigiod properly
-    sudoPassword = 'Jtzy1012'
-    command = 'pigpiod'
-    os.system('echo %s|sudo %s' % (sudoPassword, command))
+    # to call $sudo pigiod properly
+    sudoPassword = "Jtzy1012"
+    command = "pigpiod"
+    os.system("echo %s|sudo %s" % (sudoPassword, command))
 
     time.sleep(2)
 
@@ -209,43 +222,52 @@ def servos_init(initial_yaw, initial_pitch):
     vertical_servo_control(initial_pitch)
 
 
-
-
-#The servo rotates to the specified angle
+# The servo rotates to the specified angle
 def horizontal_servo_control(pos):
     # for i in range(18):
     for i in range(180):
         # pwm_servo_horizontal.ChangeDutyCycle(2.5 + 10 * pos/180)
-        pwm_servo_horizontal.set_servo_pulsewidth( Servo_Horizontal_Pin, 500 + 1000 * pos/90)
+        pwm_servo_horizontal.set_servo_pulsewidth(
+            Servo_Horizontal_Pin, 500 + 1000 * pos / 90
+        )
     print("horizontal servo")
 
-#The servo rotates to the specified angle
+
+# The servo rotates to the specified angle
 def vertical_servo_control(pos):
     # for i in range(18):
     for i in range(180):
-        pwm_servo_vertical.set_servo_pulsewidth( Servo_Vertical_Pin, 500 + 1000 * pos/90)
+        pwm_servo_vertical.set_servo_pulsewidth(
+            Servo_Vertical_Pin, 500 + 1000 * pos / 90
+        )
     print("vertical servo")
+
 
 def camera_up(camera_pitch):
     vertical_servo_control(camera_pitch)
 
+
 def camera_down(camera_pitch):
     vertical_servo_control(camera_pitch)
+
 
 def camera_left(camera_yaw):
     horizontal_servo_control(camera_yaw)
 
+
 def camera_right(camera_yaw):
     horizontal_servo_control(camera_yaw)
 
+
 def servos_cleanup():
-    #kill pigpio
-    sudoPassword = 'Jtzy1012'
-    command = 'killall pigpiod'
-    os.system('echo %s|sudo %s' % (sudoPassword, command))
+    # kill pigpio
+    sudoPassword = "Jtzy1012"
+    command = "killall pigpiod"
+    os.system("echo %s|sudo %s" % (sudoPassword, command))
+
 
 def camera_init():
-    #start motion
-    sudoPassword = 'Jtzy1012'
-    command = 'service motion start'
-    os.system('echo %s|sudo %s' % (sudoPassword, command))
+    # start motion
+    sudoPassword = "Jtzy1012"
+    command = "service motion start"
+    os.system("echo %s|sudo %s" % (sudoPassword, command))

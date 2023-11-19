@@ -44,6 +44,11 @@ if [[ $DO_CATKIN_BUILD == true ]]; then
         echo "catkin build failed"
         exit 1
     fi
+
+    git config --global --add safe.directory ${WORKDIRECTORY}
+    git config --global --add safe.directory ${WORKDIRECTORY}/src/SimpleRoboticsPythonUtils
+    cd ${WORKDIRECTORY}/src && git submodule update --init --recursive
+    cd ${WORKDIRECTORY}/src/SimpleRoboticsPythonUtils && pip3 install -e .
 fi
 
 

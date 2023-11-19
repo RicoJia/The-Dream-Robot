@@ -3,5 +3,12 @@
 SERVICE:
   LED_SERVICE: "/dream/led_service"
 
-TOPIC:
-  ENCODER_STATUS: "/dream/encoder_status"
+SHM_TOPIC:
+  # NOTE: there must be only one slash, and it should be at the beginning
+  WHEEL_VELOCITIES: "/wheel_velocities"
+  MOTOR_COMMANDS: "/motor_commands"
+
+PARAMS:
+  ENCODER_PUB_FREQUENCY: 50
+  MOTOR_PUB_FREQUENCY: 15
+  WHEEL_DIAMETER: 0.041

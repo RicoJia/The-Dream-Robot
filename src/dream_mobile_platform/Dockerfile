@@ -4,6 +4,8 @@
 # Build Procedure:
 # On dev machine:
 # docker buildx build --platform linux/arm64/v8 -t rpi-dream-mobile-platform . --load
+# If you see error that cannot pull images, then do:
+# docker kill buildx_buildkit_rpi-builder0
 # docker tag rpi-dream-mobile-platform:latest ricojia/rpi-dream-mobile-platform:latest
 # docker push ricojia/rpi-dream-mobile-platform:latest
 # On rpi: 
@@ -12,6 +14,7 @@
 #   --name my_ros_container \
 #   --rm \
 #   -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot \
+#   -v ~/.ssh:/root/.ssh \
 #   -it \
 #   --network="host" \
 #   --privileged \
@@ -29,9 +32,10 @@ RUN apt-get update && apt-get install -y \
     v4l-utils \
     wget \
     unzip \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade opencv-python==4.6.0.66 websockets==10.4 RPi.GPIO pip install pigpio
+RUN pip3 install --upgrade opencv-python==4.6.0.66 websockets==10.4 RPi.GPIO posix_ipc
 
 RUN wget https://github.com/joan2937/pigpio/archive/master.zip && unzip master.zip && cd pigpio-master && make && sudo make install
 
