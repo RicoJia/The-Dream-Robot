@@ -5,6 +5,14 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
 )
 import rospy
 # we want to save params: P, I, D.
+# Generates a list of: pwm, speed 
+class FeedForwardCollector:
+    pass
+
+class MotorPIDController:
+    def __init__(self):
+        # Feedforard + p * diff + i * int + d * del d
+        pass
 
 if __name__ == "__main__":
     rospy.init_node("test_motors")
