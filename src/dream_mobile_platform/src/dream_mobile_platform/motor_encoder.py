@@ -101,8 +101,8 @@ class PigpioDecoder:
             self.count = PigpioDecoder.count_wrap(self.count)
 
     def get_angle(self):
-        """return angle in degree in [0, 360)"""
-        return self.count * 360 / CPR
+        """return angle in degree in [0, 2pi)"""
+        return self.count * 2 * np.pi / CPR
 
     def cancel(self):
         self.cbA.cancel()
@@ -134,7 +134,8 @@ class EncoderReader:
             typing.List[float]: wheel velocities in m/s
         """
         def angle_wrap(angle):
-            return angle % 360
+            diff = (angle + np.pi) % (2 * np.pi) - np.pi
+            return np.pi if diff == -np.pi else diff 
 
         # get_angle_diffs
         current_wheel_angles_np = np.asarray(current_wheel_angles, dtype=float)
@@ -146,7 +147,7 @@ class EncoderReader:
     def pub_velocities(self, current_wheel_angles: typing.List[float]):
         angle_diffs: np.ndarray = self.get_angle_diffs(current_wheel_angles)
         curr_time = time.perf_counter()
-        angle_velocities = angle_diffs/(curr_time - self.last_wheel_time)
+        angle_velocities = WHEEL_DIAMETER * angle_diffs/(curr_time - self.last_wheel_time)
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
 

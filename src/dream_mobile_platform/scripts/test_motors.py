@@ -36,6 +36,7 @@ if __name__ == "__main__":
     pwm = 0
     rate = rospy.Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
     while not rospy.is_shutdown():
-        pwm = (pwm + 5) % 30
-        motor_commands_pub.publish([pwm, pwm])
+        # pwm = (pwm + 5) % 30
+        pwm = 15
+        motor_commands_pub.publish([pwm, 0])
         rospy.sleep(3)
