@@ -68,7 +68,7 @@ byobu send-keys -t $SESSION_NAME "sudo pigpiod && roslaunch dream_mobile_platfor
 # Rename the window to "drivers".
 byobu rename-window -t $SESSION_NAME "low_level_drivers"
 byobu new-window -t $SESSION_NAME -n "camera_service" 
-byobu send-keys -t $SESSION_NAME:camera_service ""rosrun dream_mobile_platform camera_service.bash""
+byobu send-keys -t $SESSION_NAME:"camera_service" "rosrun dream_mobile_platform camera_service.bash" ${SEND_KEY}
 
 # Attach to the session.
 byobu attach -t $SESSION_NAME
