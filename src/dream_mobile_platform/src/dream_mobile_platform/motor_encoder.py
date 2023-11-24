@@ -8,12 +8,15 @@ import rospy
 import typing
 import time
 
+
 def get_pigpio():
-    """ we have this funky function so it could make testing easier, since
+    """we have this funky function so it could make testing easier, since
     pigpio is only installed on rpi
     """
     import pigpio
+
     return pigpio
+
 
 LEFT_PHASE_A = 7
 RIGHT_PHASE_A = 6
@@ -113,25 +116,26 @@ class PigpioDecoder:
         """count is in [0, CPR)"""
         return count % CPR
 
+
 class EncoderReader:
     def __init__(self) -> None:
         self._encoder_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
             arr_size=2,
-            debug=False
+            debug=False,
         )
         self.last_wheel_pos_np = np.zeros(2)
         self.last_wheel_time = time.perf_counter()
         print(f"{self.__class__.__name__} has been initialized")
 
-    def angle_wrap_wheel_diff(self,  angle: float):
+    def angle_wrap_wheel_diff(self, angle: float):
         """Input angle: [-2pi, 2pi), wrapping angles to [-pi, pi)"""
         diff = (angle + np.pi) % (2 * np.pi) - np.pi
-        return -np.pi if diff == np.pi else diff 
-    
+        return -np.pi if diff == np.pi else diff
+
     def get_angle_diffs(self, current_wheel_angles: typing.List[float]) -> np.ndarray:
-        """compute angle-wrapped wheel differences 
+        """compute angle-wrapped wheel differences
 
         Args:
             current_wheel_angles (typing.List[float]): wheel angles in [0, 2pi)
@@ -143,7 +147,9 @@ class EncoderReader:
         # get_angle_diffs
         current_wheel_angles_np = np.asarray(current_wheel_angles, dtype=float)
         wheel_diffs = current_wheel_angles_np - self.last_wheel_pos_np
-        wheel_diffs = np.asarray(list(map(lambda x: self.angle_wrap_wheel_diff(x), wheel_diffs)))
+        wheel_diffs = np.asarray(
+            list(map(lambda x: self.angle_wrap_wheel_diff(x), wheel_diffs))
+        )
         self.last_wheel_pos_np = current_wheel_angles_np
         return wheel_diffs
 
@@ -155,7 +161,9 @@ class EncoderReader:
         """
         angle_diffs: np.ndarray = self.get_angle_diffs(current_wheel_angles)
         curr_time = time.perf_counter()
-        angle_velocities = WHEEL_DIAMETER * angle_diffs/(curr_time - self.last_wheel_time)
+        angle_velocities = (
+            WHEEL_DIAMETER * angle_diffs / (curr_time - self.last_wheel_time)
+        )
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
 
@@ -167,7 +175,5 @@ if __name__ == "__main__":
     e = EncoderReader()
     r = Rate(50)
     while not rospy.is_shutdown():
-        e.pub_velocities(
-           [left_decoder.get_angle(), right_decoder.get_angle()] 
-        )
+        e.pub_velocities([left_decoder.get_angle(), right_decoder.get_angle()])
         r.sleep()
