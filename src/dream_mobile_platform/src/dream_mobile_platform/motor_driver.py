@@ -52,9 +52,9 @@ class PigpioMotorControl:
             self.pi.write(IN2, 0)
             self.pi.write(IN3, 1)
             self.pi.write(IN4, 0)
-            # Map speed (assuming 0-100 input) to PWM duty cycle (0-255)
-            self.pi.set_PWM_dutycycle(ENA, int(self.left_speed * 255 / 100))
-            self.pi.set_PWM_dutycycle(ENB, int(self.right_speed * 255 / 100))
+            # Map speed in percentage [0,1] to PWM duty cycle (0-255)
+            self.pi.set_PWM_dutycycle(ENA, int(self.left_speed * 255))
+            self.pi.set_PWM_dutycycle(ENB, int(self.right_speed * 255))
         else:
             self.pi.set_PWM_dutycycle(ENA, 0)
             self.pi.set_PWM_dutycycle(ENB, 0)
@@ -67,7 +67,10 @@ class PigpioMotorControl:
         self.pi.stop()
         self.logger.info(f'{self.__class__.__name__} cleaned up')
         
-    def change_speed(self, speed: Tuple[float]):
+    def change_speed(self, speed: Tuple[float, float]):
+        if speed[0] > 1 or speed[1] > 1:
+            self.logger.warning(f'Speed must be in [0,1]: {speed}')
+            return
         self.left_speed, self.right_speed = speed
 
 
@@ -91,9 +94,7 @@ if __name__ == "__main__":
     last_right = 0
 
     while not rospy.is_shutdown():
-        # forward(LEFT_PWM, RIGHT_PWM)
         pmc.move_motors()
-        rospy.sleep(0.04)
+        rospy.sleep(0.02)
 
-    # motors_cleanup()
     pmc.cleanup()
