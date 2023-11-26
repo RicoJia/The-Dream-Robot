@@ -85,7 +85,7 @@ class IncrementalPIDController:
         print(f'Rico: e: {e}, u: {u}')
         return current_pwm
 
-    def get_actual_speed(self) -> Tuple[float, float]:
+    def get_actual_speeds(self) -> Tuple[float, float]:
         return tuple(self.motor_speeds)
 
 class MotorControlBench:
@@ -126,17 +126,8 @@ class MotorControlBench:
         pwm = self.pid_controller.get_pwms()
         self.motor_commands_pub.publish(list(pwm))
         self.rate.sleep()
+        return self.pid_controller.get_actual_speeds()
         
-# 1. In an ideal world, we can have a publisher and a subscriber automatically recycled, 
-# THat requires: 1. when recycled, it will say bye to its peers. 2. force gc
-# 2. Intermediate solution: The instances still exists, but they are unregistered
-# 3. Or, We can share pub, and sub. Make them singleton. However, Subscribers needs callback. 
-# It's not a good practice to change subscriber callback
-# 4. Or, we launch a separate process for the test bench. 
-#   - Need: two lists: test data, and timestamp. And that requires multiprocessing.manager, and sharedlist. 
-#       Not too bad
-
-
 if __name__ == "__main__":
     # How to test: 1. store primary speed as TODO; GETTING_COMMANDED_VEL = True 
     # 2. add print statement for motor speed as TODO

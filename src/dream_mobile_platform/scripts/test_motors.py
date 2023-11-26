@@ -15,17 +15,17 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
 import rospy
 import typing
 import random
-from multiprocessing import process, Manager
+from multiprocessing import Process, Manager
 
-NUM_GENERATIONS = 1
 FITTEST_POPULATION_SIZE = 10
-CHILDREN_NUM = 5
-# TODO: before we run this, we need to see if these velocities make sense
-TEST_SEQUENCE = ((0.1, 5), ) # (0.2, 5), (0.3, 5), (0.1, 5), (0.0, 5)
 PERFORMANCE_FILE = "PID_PERFORMANCE.csv"
-KP_MAX = 5
-KI_MAX = 3
-KD_MAX = 3
+KP_MAX = 1
+KI_MAX = 0.1
+KD_MAX = 0.3
+# TODO: before we run this, we need to see if these velocities make sense
+TEST_SEQUENCE = ((0.1, 5), (0.6, 5), ) # (0.2, 5), (0.3, 5), (0.1, 5), (0.0, 5)
+NUM_GENERATIONS = 1
+CHILDREN_NUM = 1
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
     # Generate random numbers for P, I, D
@@ -58,7 +58,7 @@ def reproduce(parents):
 def score_speed_trajectory(test_data_length_stamps, test_data):
     pass
 
-def start_test_and_record(pid_params: typing.Tuple[PIDParams, PIDParams], publisher: SharedMemoryPub):
+def start_test_and_record(left_and_right_pid_params: typing.Tuple[PIDParams, PIDParams]):
     """
     - test_output = []; will be nice to have (0.5 - [])...
     - controller has a subscriber -> encoder; sub -> commanded wheel vel; publisher -> speed pub; 
@@ -69,18 +69,37 @@ def start_test_and_record(pid_params: typing.Tuple[PIDParams, PIDParams], publis
     - Running Env: dream_byobu without motor_controller launched.
     """
     def test_worker(test_data, test_data_length_stamps):
+        # launching a pub because it has to be within the same process
+        commanded_wheel_vel_pub = SharedMemoryPub(
+            topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
+            data_type = float,
+            arr_size = 2,
+            debug = False 
+        )
+        mcb = MotorControlBench(*left_and_right_pid_params)
+        # Publishing for 2 motors
+        time.sleep(0.1)
         for v_set_point, test_time in TEST_SEQUENCE:
-            mcb = MotorControlBench(pid_params)
+            #TODO Remember to remove
+            print(f'Rico: set_point: {v_set_point}')
             start_time = time.perf_counter()
+            commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
             while time.perf_counter() - start_time < test_time:
-                # TODO: 
                 actual_speeds = mcb.step()
                 test_data.append(actual_speeds)
             test_data_length_stamps.append(len(test_data))
-        
-    test_data = deque()
-    test_data_length_stamps = []
-    score = score_speed_trajectory(test_data_length_stamps, test_data) 
+            commanded_wheel_vel_pub.publish([0.0, 0.0])
+            
+    with Manager() as manager:
+        test_data = manager.list()
+        test_data_length_stamps = manager.list()
+        print(f'Start testing child: {left_and_right_pid_params}')
+        test_proc = Process(target=test_worker, args = (test_data, test_data_length_stamps))
+        test_proc.start()
+        test_proc.join()
+        #TODO Remember to remove
+        print(f'Rico: test data: {test_data}')
+        score = score_speed_trajectory(test_data_length_stamps, test_data) 
     return score
         
         
@@ -88,15 +107,6 @@ class GeneticAlgorithmPIDTuner:
     __slots__ = ('population', 'scores', 'commanded_wheel_vel_pub')
     def __init__(self):
         self._load_population_data()
-        self._init_commanded_wheel_vel_publisher()
-
-    def _init_commanded_wheel_vel_publisher(self):
-        self.commanded_wheel_vel_pub = SharedMemoryPub(
-            topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
-            data_type = float,
-            arr_size = 2,
-            debug = False 
-        )
         
     def run(self):
         for _ in range(NUM_GENERATIONS): 
@@ -106,9 +116,7 @@ class GeneticAlgorithmPIDTuner:
             else:
                 children: typing.List[typing.Tuple[PIDParams, PIDParams]] = generate_initial_children() 
             for child in children: 
-                #TODO Remember to remove
-                print(f'Rico: start testing children: {children}')
-                score = start_test_and_record(child, self.commanded_wheel_vel_pub) 
+                score = start_test_and_record(child) 
                 self.record_score_and_update_population(score, child)
 
     def record_score_and_update_population(self, score, pid):
@@ -121,6 +129,17 @@ class GeneticAlgorithmPIDTuner:
         self.population = {}
 
 
+"""
+Design decision on lanching a separate process for a single test bench
+    1. In an ideal world, we can have a publisher and a subscriber automatically recycled, 
+        - That requires: 1. when recycled, it will say bye to its peers. 2. force gc
+    2. Intermediate solution: The instances still exists, but they are unregistered
+    3. Or, We can share pub, and sub. Make them singleton. However, Subscribers needs callback. 
+        - It's not a good practice to change subscriber callback
+    4. Or, we launch a separate process for the test bench. 
+        - Need: two lists: test data, and timestamp. And that requires multiprocessing.manager, and sharedlist. 
+        - Implementation is not too complicated, and it's forward compatible.
+"""
 if __name__ == '__main__':
     # DO NOT LAUNCH motor_controller.py. Setting node name to test_motors
     rospy.init_node("test_motors")
