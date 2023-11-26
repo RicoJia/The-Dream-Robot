@@ -15,7 +15,7 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
 import rospy
 import typing
 import random
-from multiprocessing import Process, Value
+from multiprocessing import process, Manager
 
 NUM_GENERATIONS = 1
 FITTEST_POPULATION_SIZE = 10
@@ -68,15 +68,18 @@ def start_test_and_record(pid_params: typing.Tuple[PIDParams, PIDParams], publis
             2. Otherwise, it will publish velocity explictly.
     - Running Env: dream_byobu without motor_controller launched.
     """
+    def test_worker(test_data, test_data_length_stamps):
+        for v_set_point, test_time in TEST_SEQUENCE:
+            mcb = MotorControlBench(pid_params)
+            start_time = time.perf_counter()
+            while time.perf_counter() - start_time < test_time:
+                # TODO: 
+                actual_speeds = mcb.step()
+                test_data.append(actual_speeds)
+            test_data_length_stamps.append(len(test_data))
+        
     test_data = deque()
     test_data_length_stamps = []
-    for v_set_point, test_time in TEST_SEQUENCE:
-        mcb = MotorControlBench(*pid_params)
-        start_time = time.perf_counter()
-        while time.perf_counter() - start_time < test_time:
-            mcb.step()
-        test_data_length_stamps.append(len(test_data))
-    publisher.publish([0.0, 0.0])
     score = score_speed_trajectory(test_data_length_stamps, test_data) 
     return score
         

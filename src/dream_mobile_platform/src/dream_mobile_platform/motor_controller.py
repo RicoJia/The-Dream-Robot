@@ -37,12 +37,12 @@ class IncrementalPIDController:
     
     def start_getting_wheel_vel_updates(self):
         # [e[k-1], e[k-2]]
-        self.errors: Deque[np.ndarray] = deque([np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS)
-        self.motor_speeds = np.array((0.0, 0.0))
         self.getting_speed_updates = True
         
     def stop_getting_wheel_vel_updates(self):
         self.getting_speed_updates = False
+        self.motor_speeds = np.array((0.0, 0.0))
+        self.errors: Deque[np.ndarray] = deque([np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS)
         
    ######################################### Commanded Wheel Vel Functions #########################################
     def store_commanded_speed(self, speed: Tuple[float, float]) -> None:
@@ -54,15 +54,11 @@ class IncrementalPIDController:
         self.desired_speeds = np.asarray(speed)
 
     def start_taking_commands(self):
-        self.desired_speeds = np.array((0.0, 0.0)) 
-        self.last_pwm: np.ndarray = np.zeros(2)
         self.getting_commanded_wheel_vel = True
     
     def stop_taking_commands(self):
-        # TODO
-        # self.desired_speeds = np.array((0.5, 0.0)) 
-        # self.getting_commanded_wheel_vel = True
-        # self.last_pwm: np.ndarray = np.zeros(2)
+        self.desired_speeds = np.array((0.0, 0.0)) 
+        self.last_pwm: np.ndarray = np.zeros(2)
         self.getting_commanded_wheel_vel = False
         
     def get_pwms(self) -> Tuple[float, float]:
@@ -88,6 +84,9 @@ class IncrementalPIDController:
         #TODO Remember to remove
         print(f'Rico: e: {e}, u: {u}')
         return current_pwm
+
+    def get_actual_speed(self) -> Tuple[float, float]:
+        return tuple(self.motor_speeds)
 
 class MotorControlBench:
     def __init__(self, left_pid_params: PIDParams, right_pid_params: PIDParams) -> None:
@@ -125,7 +124,7 @@ class MotorControlBench:
 
     def step(self):
         pwm = self.pid_controller.get_pwms()
-        self.motor_commands_pub.publish(pwm)
+        self.motor_commands_pub.publish(list(pwm))
         self.rate.sleep()
         
 # 1. In an ideal world, we can have a publisher and a subscriber automatically recycled, 
