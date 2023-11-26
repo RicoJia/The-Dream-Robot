@@ -31,7 +31,6 @@ class TestMotorEncoder(TestCase):
     def test_angle_wrap_wheel_diff(self):
         from dream_mobile_platform.motor_encoder import EncoderReader
 
-        er = EncoderReader()
         test_diffs = [
             -2 * np.pi,
             -np.pi - np.pi / 2,
@@ -56,7 +55,7 @@ class TestMotorEncoder(TestCase):
         ]
         for test_answer, test_diff in zip(test_answers, test_diffs):
             self.assertAlmostEqual(
-                test_answer, er.angle_wrap_wheel_diff(test_diff), delta=1e-4
+                test_answer, EncoderReader.angle_wrap_wheel_diff(test_diff), delta=1e-4
             )
 
     def test_angle_diffs(self):
