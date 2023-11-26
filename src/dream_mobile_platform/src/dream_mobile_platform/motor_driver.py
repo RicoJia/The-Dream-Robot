@@ -50,13 +50,21 @@ class PigpioMotorControl:
 
     def move_motors(self):
         if self.motors_enabled:
-            self.pi.write(IN1, 1)
-            self.pi.write(IN2, 0)
-            self.pi.write(IN3, 1)
-            self.pi.write(IN4, 0)
+            if self.left_speed > 0:
+                self.pi.write(IN1, 1)
+                self.pi.write(IN2, 0)
+            else:
+                self.pi.write(IN1, 0)
+                self.pi.write(IN2, 1)
+            if self.right_speed > 0:
+                self.pi.write(IN3, 1)
+                self.pi.write(IN4, 0)
+            else:
+                self.pi.write(IN3, 0)
+                self.pi.write(IN4, 1)
             # Map speed in percentage [0,1] to PWM duty cycle (0-255)
-            self.pi.set_PWM_dutycycle(ENA, int(self.left_speed * 255))
-            self.pi.set_PWM_dutycycle(ENB, int(self.right_speed * 255))
+            self.pi.set_PWM_dutycycle(ENA, int(abs(self.left_speed) * 255))
+            self.pi.set_PWM_dutycycle(ENB, int(abs(self.right_speed) * 255))
         else:
             self.pi.set_PWM_dutycycle(ENA, 0)
             self.pi.set_PWM_dutycycle(ENB, 0)
@@ -70,8 +78,8 @@ class PigpioMotorControl:
         self.logger.info(f"{self.__class__.__name__} cleaned up")
 
     def change_speed(self, speed: Tuple[float, float]):
-        if speed[0] > 1 or speed[1] > 1:
-            self.logger.warning(f"Speed must be in [0,1]: {speed}")
+        if abs(speed[0]) > 1 or abs(speed[1]) > 1:
+            self.logger.warning(f"Speed must be in [-1,1]: {speed}")
             return
         self.left_speed, self.right_speed = speed
 

@@ -7,7 +7,7 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 import rospy
 import typing
 import time
-from numba import njit
+# from numba import njit
 
 
 def get_pigpio():
@@ -104,7 +104,6 @@ class PigpioDecoder:
                         self.count += 1
             self.count = PigpioDecoder.count_wrap(self.count)
 
-    # @njit
     def get_angle(self):
         """Applied after count wrap [0, CPR), return angle in [0, 2pi)"""
         return self.count * 2 * np.pi / CPR
@@ -113,7 +112,6 @@ class PigpioDecoder:
         self.cbA.cancel()
         self.cbB.cancel()
 
-    # @njit
     @staticmethod
     def count_wrap(count):
         """count is in [0, CPR)"""
@@ -133,7 +131,7 @@ class EncoderReader:
         print(f"{self.__class__.__name__} has been initialized")
 
     @staticmethod
-    @njit
+    # @njit
     def angle_wrap_wheel_diff(angle: float):
         """Input angle: [-2pi, 2pi), wrapping angles to [-pi, pi)"""
         diff = (angle + np.pi) % (2 * np.pi) - np.pi

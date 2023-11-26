@@ -8,7 +8,7 @@ import rospy
 from collections import deque, namedtuple
 from typing import Tuple, Deque
 import numpy as np
-from numba import njit
+# from numba import njit
 
 PIDParams = namedtuple("PIDParams", ["kp", "ki", "kd"])
 
@@ -59,14 +59,19 @@ class IncrementalPIDController:
         self.getting_commanded_wheel_vel = True
     
     def stop_taking_commands(self):
+        # TODO
+        # self.desired_speeds = np.array((0.5, 0.0)) 
+        # self.getting_commanded_wheel_vel = True
+        # self.last_pwm: np.ndarray = np.zeros(2)
         self.getting_commanded_wheel_vel = False
         
-    def get_pwm(self) -> Tuple[float, float]:
+    def get_pwms(self) -> Tuple[float, float]:
         if self.getting_speed_updates and self.getting_commanded_wheel_vel:
             # e[k] = desired_speeds[k] - motor_speeds[k]
             e = np.asarray(self.desired_speeds) - self.motor_speeds
-            u = IncrementalPIDController.calc_pid(e, self.errors, self.kp, self.ki, self.kd)
-            current_pwm = u + self.last_pwm
+            current_pwm = IncrementalPIDController.calc_pid(e, self.errors, self.kp, self.ki, self.kd, self.last_pwm)
+            # TODO
+            print(f'Rico: motor speed: {self.motor_speeds}, pwm: {current_pwm}')
             self.errors.appendleft(e)
             self.last_pwm = current_pwm 
             return tuple(current_pwm)
@@ -74,12 +79,15 @@ class IncrementalPIDController:
             return (0.0, 0.0)
         
     @staticmethod
-    @njit
-    def calc_pid(e, past_errors, kp, ki, kd) -> np.ndarray:
+    # @njitu
+    def calc_pid(e, past_errors, kp, ki, kd, last_pwm) -> np.ndarray:
         # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
         u = kp * (e - past_errors[0]) + ki * e + kd * (e - 2 * past_errors[0] + past_errors[1])
-        u = np.clip(u, 0.0, 1.0)
-        return u
+        current_pwm = u + last_pwm
+        current_pwm = np.clip(current_pwm, 0.0, 1.0)
+        #TODO Remember to remove
+        print(f'Rico: e: {e}, u: {u}')
+        return current_pwm
 
 class MotorControlBench:
     def __init__(self, left_pid_params: PIDParams, right_pid_params: PIDParams) -> None:
@@ -89,9 +97,9 @@ class MotorControlBench:
             data_type = float,
             arr_size = 2,
             read_frequency=rospy.get_param("/PARAMS/ENCODER_PUB_FREQUENCY"),
-            callback = pid_controller.store_speed,
-            start_connection_callback = pid_controller.start_getting_wheel_vel_updates,
-            no_connection_callback = pid_controller.stop_getting_wheel_vel_updates,
+            callback = self.pid_controller.store_speed,
+            start_connection_callback = self.pid_controller.start_getting_wheel_vel_updates,
+            no_connection_callback = self.pid_controller.stop_getting_wheel_vel_updates,
             debug = False
         )
 
@@ -116,14 +124,25 @@ class MotorControlBench:
         self.rate = Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
 
     def step(self):
-        pwm = self.pid_controller.get_pwm()
-        self.motor_commands_pub.publish([pwm, 0])
+        pwm = self.pid_controller.get_pwms()
+        self.motor_commands_pub.publish(pwm)
         self.rate.sleep()
         
+# 1. In an ideal world, we can have a publisher and a subscriber automatically recycled, 
+# THat requires: 1. when recycled, it will say bye to its peers. 2. force gc
+# 2. Intermediate solution: The instances still exists, but they are unregistered
+# 3. Or, We can share pub, and sub. Make them singleton. However, Subscribers needs callback. 
+# It's not a good practice to change subscriber callback
+# 4. Or, we launch a separate process for the test bench. 
+#   - Need: two lists: test data, and timestamp. And that requires multiprocessing.manager, and sharedlist. 
+#       Not too bad
 
 
-if __name__ == "__run_forever__":
-    rospy.init_node("test_motors")
-    mcb = MotorControlBench(PIDParams(1,0,0), PIDParams(1,0,0))
-    while  not rospy.is_shutdown():
+if __name__ == "__main__":
+    # How to test: 1. store primary speed as TODO; GETTING_COMMANDED_VEL = True 
+    # 2. add print statement for motor speed as TODO
+
+    rospy.init_node("motor_controller")
+    mcb = MotorControlBench(PIDParams(1,0.3,0.0), PIDParams(1,0,0))
+    while not rospy.is_shutdown():
         mcb.step()
