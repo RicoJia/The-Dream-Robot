@@ -62,15 +62,15 @@ fi
 
 byobu new-session -d -s $SESSION_NAME
 # Byobu window processes are children of the tmux server process.
+# By default, there's a tab called bash
 
-
+# Rename the window to "drivers".
+byobu send-keys -t $SESSION_NAME "rosrun dream_mobile_platform camera_service.bash" ${SEND_KEY}
+byobu rename-window -t $SESSION_NAME "camera_service"
 # we need -E to preserve the user's environment, otherwise sudo will have trouble loading the correct
 # PYTHON_PATH, since our user is in the SUDO group and is password less, but it's not sudo anymore
-byobu send-keys -t $SESSION_NAME "sudo pigpiod && sudo -E /bin/bash -c 'source $WORKDIRECTORY/devel/setup.bash;roslaunch dream_mobile_platform low_level_drivers.launch '" ${SEND_KEY}
-# Rename the window to "drivers".
-byobu rename-window -t $SESSION_NAME "low_level_drivers"
-byobu new-window -t $SESSION_NAME -n "camera_service" 
-byobu send-keys -t $SESSION_NAME:"camera_service" "rosrun dream_mobile_platform camera_service.bash" ${SEND_KEY}
+byobu new-window -t $SESSION_NAME -n "low_level_drivers" 
+byobu send-keys -t $SESSION_NAME:"low_level_drivers" "sudo pigpiod && sudo -E /bin/bash -c 'source $WORKDIRECTORY/devel/setup.bash;roslaunch dream_mobile_platform low_level_drivers.launch '" ${SEND_KEY}
 
 # Attach to the session.
 byobu attach -t $SESSION_NAME

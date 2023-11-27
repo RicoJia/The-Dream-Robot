@@ -4,6 +4,9 @@
 2. Scoring system:
     reaching 0.1m/s, read motor speed for 5s. score: sum|score|
 3. Record (kp, ki, kd): score in a csv file as a 'database'. So later it can be read
+How to run this file:
+1. start container
+2. sudo_ros_preserve_env rosrun dream_mobile_platform test_motors.py
 """
 
 from collections import deque
