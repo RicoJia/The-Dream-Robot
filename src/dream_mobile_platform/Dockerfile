@@ -33,6 +33,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
+    # useful for git complete
+    bash-completion \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --upgrade opencv-python==4.6.0.66 \
@@ -46,8 +48,13 @@ RUN wget https://github.com/joan2937/pigpio/archive/master.zip && unzip master.z
 ARG UNAME="dream_robot"
 ARG UID=1000
 ARG GID=1000
-RUN groupadd -f -g $GID $UNAME && \
-id -u $UNAME || useradd -m -u $UID -g $GID -s /bin/bash $UNAME
+RUN adduser --disabled-password --gecos '' ${UNAME}
+RUN adduser ${UNAME} sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# RUN groupadd -f -g $GID $UNAME && \
+# id -u $UNAME || useradd -m -u $UID -g $GID -s /bin/bash $UNAME
+
+# This could be a security concern, but it's for convenience
 # Set the image to run as the user
 USER $UNAME
 
@@ -60,7 +67,8 @@ WORKDIR ${WORKDIRECTORY}
 
 # Must use 
 RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
-    echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc
+    echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
+    echo 'source "${WORKDIRECTORY}/dream_bashrc.sh"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
 CMD /bin/bash
 
