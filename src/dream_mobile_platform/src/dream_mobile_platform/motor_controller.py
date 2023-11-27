@@ -89,7 +89,7 @@ class IncrementalPIDController:
             return (0.0, 0.0)
 
     @staticmethod
-    @njit
+    # @njit
     def calc_pid(
         e: np.ndarray,
         past_errors: Deque[np.ndarray],
