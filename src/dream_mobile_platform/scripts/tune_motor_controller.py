@@ -163,7 +163,6 @@ class GeneticAlgorithmPIDTuner:
     ):
         # record the score in PERFORMANCE_FILE
         # add the child and score to population
-        print(f"PID: {pid}, score: {score}")
         with open(PERFORMANCE_FILE, "a") as f:
             writer = csv.writer(f)
             writer.writerow([score])
@@ -179,8 +178,6 @@ class GeneticAlgorithmPIDTuner:
             reader = csv.reader(f)
             for row_i, row in enumerate(reader):
                 if row_i % NUM_RECORDED_ITEMS == 0:
-                    # TODO Remember to remove
-                    print(f"Rico: return_performances: {return_performances}")
                     return_performances.append([float(row[0])])
                 elif row_i % NUM_RECORDED_ITEMS == 1:
                     return_performances[-1].append(
