@@ -56,11 +56,13 @@ def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams
 
 
 def select_fittest_population(population):
+    # TODO
     pass
 
 
 def reproduce(parents):
     # cross over, then mutate
+    # TODO
     pass
 
 
@@ -189,6 +191,7 @@ class GeneticAlgorithmPIDTuner:
         return return_performances
 
     def _load_population_data(self):
+        # TODO
         self.population = {}
 
 
