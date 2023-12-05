@@ -68,7 +68,7 @@ WORKDIR ${WORKDIRECTORY}
 # Must use 
 RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
     echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
-    echo 'source "${WORKDIRECTORY}/dream_bashrc.sh"' >> ~/.bashrc
+    echo 'source "${WORKDIRECTORY}/src/dream_mobile_platform/dream_bashrc.sh"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
 CMD /bin/bash
 
