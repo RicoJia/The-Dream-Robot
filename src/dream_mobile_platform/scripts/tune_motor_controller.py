@@ -245,12 +245,17 @@ class GeneticAlgorithmPIDTuner:
     def _load_population_data(self):
         self.left_population = {}
         self.right_population = {}
+        def _load_single_population(population: typing.Dict[]):
+            
 
     def summarize(self):
-        print("============ left motor performance ============")
-        print(self._read_single_performance_file(LEFT_PERFORMANCE_FILE))
-        print("============ right motor performance ============")
-        print(self._read_single_performance_file(RIGHT_PERFORMANCE_FILE))
+        def _summarize_single_performance_file(performance_file):
+            all_performances = self._read_single_performance_file(performance_file)
+            print(f"============ {performance_file} ============")
+            for p in all_performances:
+                print(p)
+        _summarize_single_performance_file(LEFT_PERFORMANCE_FILE)
+        _summarize_single_performance_file(RIGHT_PERFORMANCE_FILE)
 
 
 """
