@@ -25,14 +25,14 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 FITTEST_POPULATION_SIZE = 10
 LEFT_PERFORMANCE_FILE = "LEFT_PID_PERFORMANCE.csv"
 RIGHT_PERFORMANCE_FILE = "RIGHT_PID_PERFORMANCE.csv"
-KP_MAX = 2
-KI_MAX = 0.3
-KD_MAX = 0.3
+KP_MAX = 1.0
+KI_MAX = 0.5
+KD_MAX = 0.5
 # TODO: before we run this, we need to see if these velocities make sense
 TEST_SEQUENCE = (
-    (0.1, 1.5),
-    # (0.6, 1.5),
-    # (0.2, 1.5),
+    (0.1, 2.5),
+    # (0.6, 2.5),
+    (0.2, 2.5),
 )
 NUM_GENERATIONS = 1
 CHILDREN_NUM = 1
@@ -118,8 +118,7 @@ def start_test_and_record(
         time.sleep(0.1)
         for v_set_point, test_time in TEST_SEQUENCE:
             start_time = time.perf_counter()
-            # TODO
-            # commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
+            commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
             while time.perf_counter() - start_time < test_time:
                 # place the speed reading before stepping, because it takes
                 # time for the step to take effect.
@@ -164,11 +163,13 @@ class GeneticAlgorithmPIDTuner:
 
     def run(self):
         for _ in range(NUM_GENERATIONS):
-            if self.population:
-                fittest_population = select_fittest_population(self.population)
-                children: typing.List[typing.Tuple[PIDParams, PIDParams]] = reproduce(
-                    fittest_population
-                )
+            if self.left_population and self.right_population:
+                pass
+                # TODO
+                # fittest_population = select_fittest_population(self.population)
+                # children: typing.List[typing.Tuple[PIDParams, PIDParams]] = reproduce(
+                #     fittest_population
+                # )
             else:
                 children: typing.List[
                     typing.Tuple[PIDParams, PIDParams]
@@ -245,6 +246,12 @@ class GeneticAlgorithmPIDTuner:
         self.left_population = {}
         self.right_population = {}
 
+    def summarize(self):
+        print("============ left motor performance ============")
+        print(self._read_single_performance_file(LEFT_PERFORMANCE_FILE))
+        print("============ right motor performance ============")
+        print(self._read_single_performance_file(RIGHT_PERFORMANCE_FILE))
+
 
 """
 1. Design decision on lanching a separate process for a single test bench
@@ -275,3 +282,4 @@ if __name__ == "__main__":
     rospy.init_node("test_motors")
     ga_pid_tuner = GeneticAlgorithmPIDTuner()
     ga_pid_tuner.run()
+    ga_pid_tuner.summarize()
