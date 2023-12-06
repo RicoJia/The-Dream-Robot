@@ -33,7 +33,7 @@ TEST_SEQUENCE = (
     (0.1, 1.5),
     # (0.6, 1.5),
     # (0.2, 1.5),
-)  
+)
 NUM_GENERATIONS = 1
 CHILDREN_NUM = 1
 
@@ -70,24 +70,26 @@ def reproduce(parents):
     pass
 
 
-def score_speed_trajectory(test_data_length_stamps, test_data):
+def score_speed_trajectory(
+    test_data_length_stamps: typing.List[int],
+    test_data: typing.List[typing.Tuple[float, float]],
+) -> typing.Tuple[float, float]:
     # test_data_length_stamps: [10, 20], test_data = [.....]
     # for last_length_stamp to test_data_length_stamp:
     # sum(abs(setpoint - v[k]))/len(list)
     start_of_test = 0
     i = 0
-    score = 0.0
+    scores = np.zeros(2)
     for setpoint, time in TEST_SEQUENCE:
         end_of_test = test_data_length_stamps[i]
-        sum_diff = sum(
-            abs(
-                np.asarray(test_data[start_of_test:end_of_test]) - np.ones(2) * setpoint
-            )
+        abs_diffs = abs(
+            np.asarray(test_data[start_of_test:end_of_test]) - np.ones(2) * setpoint
         )
+        sum_diff = np.sum(abs_diffs, axis=0)
         start_of_test = end_of_test
-        score += sum_diff / len(test_data)
+        scores += sum_diff / len(test_data)
         i += 1
-    return score
+    return tuple(scores)
 
 
 def start_test_and_record(
@@ -115,8 +117,6 @@ def start_test_and_record(
         # Publishing for 2 motors
         time.sleep(0.1)
         for v_set_point, test_time in TEST_SEQUENCE:
-            # TODO Remember to remove
-            print(f"Rico: set_point: {v_set_point}")
             start_time = time.perf_counter()
             # TODO
             # commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
@@ -139,15 +139,25 @@ def start_test_and_record(
         )
         test_proc.start()
         test_proc.join()
-        # TODO Remember to remove
-        print(f"Rico: test data: {test_data}")
         score = score_speed_trajectory(test_data_length_stamps, test_data)
         test_data_list = list(test_data)
     return score, test_data_list
 
 
 class GeneticAlgorithmPIDTuner:
-    __slots__ = ("left_population", "right_population", "scores", "commanded_wheel_vel_pub")
+    """Please read me
+
+    Structure:
+        - child and children are left and right motors:
+        - But population, performance files are left or right motor
+    """
+
+    __slots__ = (
+        "left_population",
+        "right_population",
+        "scores",
+        "commanded_wheel_vel_pub",
+    )
 
     def __init__(self):
         self._load_population_data()
@@ -164,36 +174,60 @@ class GeneticAlgorithmPIDTuner:
                     typing.Tuple[PIDParams, PIDParams]
                 ] = generate_initial_children()
             for child in children:
-                score, test_data = start_test_and_record(child)
-                self.record_score_and_update_population(score, child, test_data)
+                scores, test_data = start_test_and_record(child)
+                self.record_score_and_update_population(scores, child, test_data)
 
     def _single_record_score_and_update_population(
-        score: float, 
-        single_pid_child: PIDParams
+        self,
+        score: float,
+        single_pid_child: PIDParams,
         single_motor_test_data: typing.List[float],
-        PERFORMANCE_FILE
-        ):
+        performance_file: str,
+        population: typing.Dict[PIDParams, float],
+    ):
         # Separate the left and right data
-        with open(PERFORMANCE_FILE, "a") as f:
+        with open(performance_file, "a") as f:
             writer = csv.writer(f)
             writer.writerow([score])
-            writer.writerow([pid.kp, pid.ki, pid.kd])
-            writer.writerow(test_data)
-        self.population[pid] = score
-    
-    def record_score_and_update_population(
-        self, 
-        score: float, 
-        pid_child: typing.Tuple[PIDParams, PIDParams], 
-        test_data: typing.List[typing.Tuple[float, float]]
-    ):
-        # record the score in LEFT_PERFORMANCE_FILE, RIGHT_PERFORMANCE_FILE 
+            writer.writerow(
+                [single_pid_child.kp, single_pid_child.ki, single_pid_child.kd]
+            )
+            writer.writerow(single_motor_test_data)
+        population[single_pid_child] = score
 
-    def read_performance_file(self) -> typing.List[typing.List[typing.Any]]:
+    def record_score_and_update_population(
+        self,
+        scores: typing.Tuple[float, float],
+        pid_child: typing.Tuple[PIDParams, PIDParams],
+        test_data: typing.List[typing.Tuple[float, float]],
+    ):
+        # get left and right test data
+        left_motor_test_data = []
+        right_motor_test_data = []
+        for l, r in test_data:
+            left_motor_test_data.append(l)
+            right_motor_test_data.append(r)
+        self._single_record_score_and_update_population(
+            scores[0],
+            pid_child[0],
+            left_motor_test_data,
+            LEFT_PERFORMANCE_FILE,
+            self.left_population,
+        )
+        self._single_record_score_and_update_population(
+            scores[1],
+            pid_child[1],
+            right_motor_test_data,
+            RIGHT_PERFORMANCE_FILE,
+            self.right_population,
+        )
+        # record the score in LEFT_PERFORMANCE_FILE, RIGHT_PERFORMANCE_FILE
+
+    def _read_single_performance_file(self, performance_file) -> typing.List[typing.List[typing.Any]]:
         return_performances = []
         # pid, score, test_data are the recorded items
         NUM_RECORDED_ITEMS = 3
-        with open(PERFORMANCE_FILE, "r") as f:
+        with open(performance_file, "r") as f:
             reader = csv.reader(f)
             for row_i, row in enumerate(reader):
                 if row_i % NUM_RECORDED_ITEMS == 0:
@@ -208,8 +242,8 @@ class GeneticAlgorithmPIDTuner:
         return return_performances
 
     def _load_population_data(self):
-        # TODO
-        self.population = {}
+        self.left_population = {}
+        self.right_population = {}
 
 
 """
