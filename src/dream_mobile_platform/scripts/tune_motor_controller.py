@@ -4,6 +4,9 @@
 2. Scoring system:
     reaching 0.1m/s, read motor speed for 5s. score: sum|score|
 3. Record (kp, ki, kd): score in a csv file as a 'database'. So later it can be read
+How to run this
+1. start container
+2. sudo_ros_preserve_env rosrun dream_mobile_platform tune_motor_controller.py
 """
 
 from collections import deque
@@ -20,16 +23,17 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 
 
 FITTEST_POPULATION_SIZE = 10
-PERFORMANCE_FILE = "PID_PERFORMANCE.csv"
+LEFT_PERFORMANCE_FILE = "LEFT_PID_PERFORMANCE.csv"
+RIGHT_PERFORMANCE_FILE = "RIGHT_PID_PERFORMANCE.csv"
 KP_MAX = 2
 KI_MAX = 0.3
 KD_MAX = 0.3
 # TODO: before we run this, we need to see if these velocities make sense
 TEST_SEQUENCE = (
     (0.1, 1.5),
-    (0.6, 1.5),
-    (0.2, 1.5),
-)  # (0.3, 5), (0.1, 5), (0.0, 5)
+    # (0.6, 1.5),
+    # (0.2, 1.5),
+)  
 NUM_GENERATIONS = 1
 CHILDREN_NUM = 1
 
@@ -114,7 +118,8 @@ def start_test_and_record(
             # TODO Remember to remove
             print(f"Rico: set_point: {v_set_point}")
             start_time = time.perf_counter()
-            commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
+            # TODO
+            # commanded_wheel_vel_pub.publish([v_set_point, v_set_point])
             while time.perf_counter() - start_time < test_time:
                 # place the speed reading before stepping, because it takes
                 # time for the step to take effect.
@@ -128,6 +133,7 @@ def start_test_and_record(
         test_data = manager.list()
         test_data_length_stamps = manager.list()
         print(f"Start testing child: {left_and_right_pid_params}")
+        # Test data: typing.List[typing.Tuple[float, float]
         test_proc = Process(
             target=test_worker, args=(test_data, test_data_length_stamps)
         )
@@ -136,11 +142,12 @@ def start_test_and_record(
         # TODO Remember to remove
         print(f"Rico: test data: {test_data}")
         score = score_speed_trajectory(test_data_length_stamps, test_data)
-    return score, list(test_data)
+        test_data_list = list(test_data)
+    return score, test_data_list
 
 
 class GeneticAlgorithmPIDTuner:
-    __slots__ = ("population", "scores", "commanded_wheel_vel_pub")
+    __slots__ = ("left_population", "right_population", "scores", "commanded_wheel_vel_pub")
 
     def __init__(self):
         self._load_population_data()
@@ -160,17 +167,27 @@ class GeneticAlgorithmPIDTuner:
                 score, test_data = start_test_and_record(child)
                 self.record_score_and_update_population(score, child, test_data)
 
-    def record_score_and_update_population(
-        self, score: float, pid: PIDParams, test_data: typing.List[float]
-    ):
-        # record the score in PERFORMANCE_FILE
-        # add the child and score to population
+    def _single_record_score_and_update_population(
+        score: float, 
+        single_pid_child: PIDParams
+        single_motor_test_data: typing.List[float],
+        PERFORMANCE_FILE
+        ):
+        # Separate the left and right data
         with open(PERFORMANCE_FILE, "a") as f:
             writer = csv.writer(f)
             writer.writerow([score])
             writer.writerow([pid.kp, pid.ki, pid.kd])
             writer.writerow(test_data)
         self.population[pid] = score
+    
+    def record_score_and_update_population(
+        self, 
+        score: float, 
+        pid_child: typing.Tuple[PIDParams, PIDParams], 
+        test_data: typing.List[typing.Tuple[float, float]]
+    ):
+        # record the score in LEFT_PERFORMANCE_FILE, RIGHT_PERFORMANCE_FILE 
 
     def read_performance_file(self) -> typing.List[typing.List[typing.Any]]:
         return_performances = []
