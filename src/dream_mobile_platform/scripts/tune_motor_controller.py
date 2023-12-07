@@ -22,20 +22,21 @@ from dream_mobile_platform.motor_controller import MotorControlBench, PIDParams
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 
 
-FITTEST_POPULATION_SIZE = 10
+# Fittest population should always be smaller than CHILDREN_NUM
+FITTEST_POPULATION_SIZE = 4
+CHILDREN_NUM = FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2
 LEFT_PERFORMANCE_FILE = "LEFT_PID_PERFORMANCE.csv"
 RIGHT_PERFORMANCE_FILE = "RIGHT_PID_PERFORMANCE.csv"
 KP_MAX = 1.0
 KI_MAX = 0.5
 KD_MAX = 0.5
-# TODO: before we run this, we need to see if these velocities make sense
 TEST_SEQUENCE = (
     (0.1, 2.5),
-    # (0.6, 2.5),
+    (0.6, 2.5),
     (0.2, 2.5),
+    (0.8, 2.5),
 )
-NUM_GENERATIONS = 1
-CHILDREN_NUM = 1
+NUM_GENERATIONS = 2
 
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
@@ -59,15 +60,48 @@ def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams
     return initial_children
 
 
-def select_fittest_population(population):
-    # TODO
-    pass
+def select_fittest_population(
+    population: typing.Dict[PIDParams, str]
+) -> typing.Dict[PIDParams, str]:
+    """Select lowest N children - the higher the score, the lower the stability
+
+    Args:
+        population (typing.Dict[PIDParams, str]): left or right population
+
+    Returns:
+        typing.Dict[PIDParams, str]: lowest N children
+    """
+    sorted_population = sorted(population.items(), key=lambda x: x[1])
+    lowest_n_children = dict(sorted_population[:FITTEST_POPULATION_SIZE])
+    return lowest_n_children
 
 
-def reproduce(parents):
-    # cross over, then mutate
-    # TODO
-    pass
+def reproduce(population: typing.Dict[PIDParams, str]) -> typing.Deque[PIDParams]:
+    # Take average each of them, add a mutation term to it.
+    # Then you get 6 new members
+    population_ls = list(population.items())
+    return_population = deque()
+    for i, candidate in enumerate(population_ls):
+        pid = candidate[0]
+        for another_candidate in population_ls[i + 1 :]:
+            another_pid = another_candidate[0]
+            new_pid = PIDParams(
+                (pid.kp + another_pid.kp + random.uniform(0, KP_MAX)) / 3,
+                (pid.ki + another_pid.ki + random.uniform(0, KP_MAX)) / 3,
+                (pid.kd + another_pid.kd + random.uniform(0, KP_MAX)) / 3,
+            )
+            return_population.append(new_pid)
+    return return_population
+
+
+def combine_left_and_right_candidates(
+    new_left_candidates: typing.Deque[PIDParams],
+    new_right_candidates: typing.Deque[PIDParams],
+) -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
+    children = [
+        (new_left_candidates[i], new_right_candidates[i]) for i in range(CHILDREN_NUM)
+    ]
+    return children
 
 
 def score_speed_trajectory(
@@ -164,37 +198,29 @@ class GeneticAlgorithmPIDTuner:
     def run(self):
         for _ in range(NUM_GENERATIONS):
             if self.left_population and self.right_population:
-                pass
-                # TODO
-                # fittest_population = select_fittest_population(self.population)
-                # children: typing.List[typing.Tuple[PIDParams, PIDParams]] = reproduce(
-                #     fittest_population
-                # )
+                left_fittest_population = select_fittest_population(
+                    self.left_population
+                )
+                right_fittest_population = select_fittest_population(
+                    self.right_population
+                )
+                new_left_candidates = reproduce(left_fittest_population)
+                new_right_candidates = reproduce(right_fittest_population)
+                children: typing.List[
+                    typing.Tuple[PIDParams, PIDParams]
+                ] = combine_left_and_right_candidates(
+                    new_left_candidates,
+                    new_right_candidates,
+                )
             else:
+                # will execute this when there's no performance files
                 children: typing.List[
                     typing.Tuple[PIDParams, PIDParams]
                 ] = generate_initial_children()
+
             for child in children:
                 scores, test_data = start_test_and_record(child)
                 self.record_score_and_update_population(scores, child, test_data)
-
-    def _single_record_score_and_update_population(
-        self,
-        score: float,
-        single_pid_child: PIDParams,
-        single_motor_test_data: typing.List[float],
-        performance_file: str,
-        population: typing.Dict[PIDParams, float],
-    ):
-        # Separate the left and right data
-        with open(performance_file, "a") as f:
-            writer = csv.writer(f)
-            writer.writerow([score])
-            writer.writerow(
-                [single_pid_child.kp, single_pid_child.ki, single_pid_child.kd]
-            )
-            writer.writerow(single_motor_test_data)
-        population[single_pid_child] = score
 
     def record_score_and_update_population(
         self,
@@ -202,20 +228,37 @@ class GeneticAlgorithmPIDTuner:
         pid_child: typing.Tuple[PIDParams, PIDParams],
         test_data: typing.List[typing.Tuple[float, float]],
     ):
+        def _single_record_score_and_update_population(
+            score: float,
+            single_pid_child: PIDParams,
+            single_motor_test_data: typing.List[float],
+            performance_file: str,
+            population: typing.Dict[PIDParams, float],
+        ):
+            # Separate the left and right data
+            with open(performance_file, "a") as f:
+                writer = csv.writer(f)
+                writer.writerow([score])
+                writer.writerow(
+                    [single_pid_child.kp, single_pid_child.ki, single_pid_child.kd]
+                )
+                writer.writerow(single_motor_test_data)
+            population[single_pid_child] = score
+
         # get left and right test data
         left_motor_test_data = []
         right_motor_test_data = []
         for l, r in test_data:
             left_motor_test_data.append(l)
             right_motor_test_data.append(r)
-        self._single_record_score_and_update_population(
+        _single_record_score_and_update_population(
             scores[0],
             pid_child[0],
             left_motor_test_data,
             LEFT_PERFORMANCE_FILE,
             self.left_population,
         )
-        self._single_record_score_and_update_population(
+        _single_record_score_and_update_population(
             scores[1],
             pid_child[1],
             right_motor_test_data,
@@ -224,29 +267,44 @@ class GeneticAlgorithmPIDTuner:
         )
         # record the score in LEFT_PERFORMANCE_FILE, RIGHT_PERFORMANCE_FILE
 
-    def _read_single_performance_file(self, performance_file) -> typing.List[typing.List[typing.Any]]:
+    def _read_single_performance_file(
+        self, performance_file
+    ) -> typing.List[typing.List[typing.Any]]:
         return_performances = []
         # pid, score, test_data are the recorded items
         NUM_RECORDED_ITEMS = 3
-        with open(performance_file, "r") as f:
-            reader = csv.reader(f)
-            for row_i, row in enumerate(reader):
-                if row_i % NUM_RECORDED_ITEMS == 0:
-                    return_performances.append([float(row[0])])
-                elif row_i % NUM_RECORDED_ITEMS == 1:
-                    return_performances[-1].append(
-                        PIDParams(float(row[0]), float(row[1]), float(row[2]))
-                    )
-                elif row_i % NUM_RECORDED_ITEMS == 2:
-                    return_performances[-1].append([float(x) for x in row])
+        try:
+            with open(performance_file, "r") as f:
+                reader = csv.reader(f)
+                for row_i, row in enumerate(reader):
+                    if row_i % NUM_RECORDED_ITEMS == 0:
+                        return_performances.append([float(row[0])])
+                    elif row_i % NUM_RECORDED_ITEMS == 1:
+                        return_performances[-1].append(
+                            PIDParams(float(row[0]), float(row[1]), float(row[2]))
+                        )
+                    elif row_i % NUM_RECORDED_ITEMS == 2:
+                        return_performances[-1].append([float(x) for x in row])
+        except FileNotFoundError:
+            # No performance file is found, we return empty list here
+            pass
         # typing.List[(float, PIDParams, typing.List[float])]
         return return_performances
 
     def _load_population_data(self):
+        def _load_single_population(
+            population: typing.Dict[PIDParams, float], performance_file: str
+        ):
+            performances = self._read_single_performance_file(performance_file)
+            for p in performances:
+                score = p[0]
+                pid = p[1]
+                population[pid] = score
+
         self.left_population = {}
         self.right_population = {}
-        def _load_single_population(population: typing.Dict[]):
-            
+        _load_single_population(self.left_population, LEFT_PERFORMANCE_FILE)
+        _load_single_population(self.right_population, RIGHT_PERFORMANCE_FILE)
 
     def summarize(self):
         def _summarize_single_performance_file(performance_file):
@@ -254,6 +312,7 @@ class GeneticAlgorithmPIDTuner:
             print(f"============ {performance_file} ============")
             for p in all_performances:
                 print(p)
+
         _summarize_single_performance_file(LEFT_PERFORMANCE_FILE)
         _summarize_single_performance_file(RIGHT_PERFORMANCE_FILE)
 
@@ -273,10 +332,11 @@ class GeneticAlgorithmPIDTuner:
     1. Implement scoring
     2. Store scores in performance. 
     3. Implement GA with: 
-        1. initialize population of 6
-        2. From the entire find the 4 fittest members; Cross over each of them, add a mutation term to it. Then you get 6 new members
-        3. Try the new 6 members. 
-        4. Add the new 6 members to the population
+        1. Initialize population of 6
+        2. From the entire find the 4 fittest members; 
+        3. Cross over each of them, add a mutation term to it. Then you get 6 new members
+        4. Try the new 6 members. 
+        5. Add the new 6 members to the population
     4. Termniate when the fittest members are the same. 
         1. print number of iteration
         2. Or when ctrl-C is hit.

@@ -36,10 +36,48 @@ class TestGeneralUtilFunctions(TestCase):
         for setpoint, _ in TEST_SEQUENCE:
             test_data += [(setpoint + SCORE, setpoint + SCORE)] * TEST_LENGTH
         scores = score_speed_trajectory(test_data_length_stamps, test_data)
-        print(
-            f"test_data_length_stamps: {test_data_length_stamps}, test_data: {test_data}, score: {scores}"
-        )
         assert np.allclose(scores, np.ones(2) * SCORE, atol=0.0001)
+
+    def _get_population_with_scores_being_index(self, population_size):
+        from dream_mobile_platform.motor_controller import PIDParams
+
+        population = {}
+        for i in range(population_size):
+            population[PIDParams(3 * i, 3 * i, 3 * i)] = i
+        return population
+
+    def test_select_fittest_population(self):
+        from tune_motor_controller import (
+            select_fittest_population,
+            FITTEST_POPULATION_SIZE,
+        )
+
+        # find the lowest FITTEST_POPULATION_SIZE number of scores
+        population = self._get_population_with_scores_being_index(
+            FITTEST_POPULATION_SIZE * 2
+        )
+        fittest_population = select_fittest_population(population)
+        assert len(fittest_population) == FITTEST_POPULATION_SIZE
+        # assigning score to their index [0, FITTEST_POPULATION_SIZE-1]
+        assert max(fittest_population.values()) == FITTEST_POPULATION_SIZE - 1
+
+    def test_reproduce(self):
+        from tune_motor_controller import (
+            reproduce,
+            FITTEST_POPULATION_SIZE,
+            CHILDREN_NUM,
+        )
+
+        population = self._get_population_with_scores_being_index(
+            FITTEST_POPULATION_SIZE
+        )
+        new_population = reproduce(population)
+        assert len(new_population) == CHILDREN_NUM
+        # make sure all members are not in the existing population
+        population_set = set(population)
+        new_population_set = set(new_population)
+        combined_set = population_set | new_population_set
+        assert len(combined_set) == len(population_set) + len(new_population_set)
 
 
 class TestGeneticAlgorithmPIDTuner(TestCase):
@@ -78,8 +116,21 @@ class TestGeneticAlgorithmPIDTuner(TestCase):
                 scores, pid_child, test_data
             )
 
+        from tune_motor_controller import (
+            GeneticAlgorithmPIDTuner,
+            LEFT_PERFORMANCE_FILE,
+            RIGHT_PERFORMANCE_FILE,
+        )
 
-        from tune_motor_controller import LEFT_PERFORMANCE_FILE, RIGHT_PERFORMANCE_FILE
-        performances = self.ga_pid_tuner._read_single_performance_file(RIGHT_PERFORMANCE_FILE)
-        print("performances: ", performances)
+        performances = self.ga_pid_tuner._read_single_performance_file(
+            RIGHT_PERFORMANCE_FILE
+        )
         assert performances == test_ls
+
+        # Testing population data loading by creating a new object
+        self.ga_pid_tuner = GeneticAlgorithmPIDTuner()
+        assert len(self.ga_pid_tuner.left_population) == len(test_ls)
+        assert len(self.ga_pid_tuner.right_population) == len(test_ls)
+
+        # Testing summarize
+        self.ga_pid_tuner.summarize()
