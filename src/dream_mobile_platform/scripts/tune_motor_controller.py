@@ -179,8 +179,8 @@ def start_test_and_record(
             exit(1)
         scores = score_speed_trajectory(test_data_length_stamps, test_data)
         test_data_list = list(test_data)
-        #TODO Remember to remove
-        print(f'Scores: {scores}')
+        # TODO Remember to remove
+        print(f"Scores: {scores}")
     return scores, test_data_list
 
 
@@ -219,7 +219,7 @@ class GeneticAlgorithmPIDTuner:
                 if try_best:
                     new_left_candidates = deque(left_fittest_population.keys())
                     new_right_candidates = deque(right_fittest_population.keys())
-                else: 
+                else:
                     new_left_candidates = reproduce(left_fittest_population)
                     new_right_candidates = reproduce(right_fittest_population)
                 children: typing.List[
@@ -331,7 +331,7 @@ class GeneticAlgorithmPIDTuner:
             all_performances = self._read_single_performance_file(performance_file)
             print(f"============ {performance_file} ============")
             # typing.Dict[PIDParams, float]
-            fittest = select_fittest_population({p[1] : p[0] for p in all_performances})
+            fittest = select_fittest_population({p[1]: p[0] for p in all_performances})
             print(fittest)
 
         _summarize_single_performance_file(LEFT_PERFORMANCE_FILE)
@@ -366,8 +366,13 @@ class GeneticAlgorithmPIDTuner:
 if __name__ == "__main__":
     # DO NOT LAUNCH motor_controller.py. Setting node name to test_motors
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--try_best', action='store_true', help='If you have performance files already, try the best ones')
+    parser.add_argument(
+        "--try_best",
+        action="store_true",
+        help="If you have performance files already, try the best ones",
+    )
     args = parser.parse_args()
     rospy.init_node("test_motors")
     ga_pid_tuner = GeneticAlgorithmPIDTuner()
