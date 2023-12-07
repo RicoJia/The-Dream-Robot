@@ -80,8 +80,6 @@ class IncrementalPIDController:
             current_pwm = IncrementalPIDController.calc_pid(
                 e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
             )
-            # TODO
-            print(f"Rico: motor speed: {self.motor_speeds}, pwm: {current_pwm}")
             self.errors.appendleft(e)
             self.last_pwm = current_pwm
             return tuple(current_pwm)
@@ -119,8 +117,6 @@ class IncrementalPIDController:
         )
         current_pwm = u + last_pwm
         current_pwm = np.clip(current_pwm, 0.0, 1.0)
-        # TODO Remember to remove
-        print(f"Rico: e: {e}, u: {u}")
         return current_pwm
 
     def get_actual_speeds(self) -> Tuple[float, float]:

@@ -6,7 +6,7 @@
 3. Record (kp, ki, kd): score in a csv file as a 'database'. So later it can be read
 How to run this
 1. start container
-2. sudo_ros_preserve_env rosrun dream_mobile_platform tune_motor_controller.py
+2. sudo_ros_preserve_env rosrun dream_mobile_platform tune_motor_controller.py <--try_best>
 """
 
 from collections import deque
@@ -24,19 +24,22 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 
 # Fittest population should always be smaller than CHILDREN_NUM
 FITTEST_POPULATION_SIZE = 4
-CHILDREN_NUM = FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2
+CHILDREN_NUM = int(FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2)
 LEFT_PERFORMANCE_FILE = "LEFT_PID_PERFORMANCE.csv"
 RIGHT_PERFORMANCE_FILE = "RIGHT_PID_PERFORMANCE.csv"
-KP_MAX = 1.0
+KP_MAX = 0.5
 KI_MAX = 0.5
 KD_MAX = 0.5
+TEST_TIME = 1.5
 TEST_SEQUENCE = (
-    (0.1, 2.5),
-    (0.6, 2.5),
-    (0.2, 2.5),
-    (0.8, 2.5),
+    (0.1, TEST_TIME),
+    (0.6, TEST_TIME),
+    (0.2, TEST_TIME),
+    (1.0, TEST_TIME),
+    # (0.8, TEST_TIME),
+    # (0.1, TEST_TIME),
 )
-NUM_GENERATIONS = 2
+NUM_GENERATIONS = 4
 
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
@@ -61,15 +64,15 @@ def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams
 
 
 def select_fittest_population(
-    population: typing.Dict[PIDParams, str]
-) -> typing.Dict[PIDParams, str]:
+    population: typing.Dict[PIDParams, float]
+) -> typing.Dict[PIDParams, float]:
     """Select lowest N children - the higher the score, the lower the stability
 
     Args:
-        population (typing.Dict[PIDParams, str]): left or right population
+        population (typing.Dict[PIDParams, float]): left or right population
 
     Returns:
-        typing.Dict[PIDParams, str]: lowest N children
+        typing.Dict[PIDParams, float]: lowest N children
     """
     sorted_population = sorted(population.items(), key=lambda x: x[1])
     lowest_n_children = dict(sorted_population[:FITTEST_POPULATION_SIZE])
@@ -165,16 +168,20 @@ def start_test_and_record(
     with Manager() as manager:
         test_data = manager.list()
         test_data_length_stamps = manager.list()
-        print(f"Start testing child: {left_and_right_pid_params}")
+        print(f"======== Start testing child: {left_and_right_pid_params} ========")
         # Test data: typing.List[typing.Tuple[float, float]
         test_proc = Process(
             target=test_worker, args=(test_data, test_data_length_stamps)
         )
         test_proc.start()
         test_proc.join()
-        score = score_speed_trajectory(test_data_length_stamps, test_data)
+        if rospy.is_shutdown():
+            exit(1)
+        scores = score_speed_trajectory(test_data_length_stamps, test_data)
         test_data_list = list(test_data)
-    return score, test_data_list
+        #TODO Remember to remove
+        print(f'Scores: {scores}')
+    return scores, test_data_list
 
 
 class GeneticAlgorithmPIDTuner:
@@ -195,7 +202,12 @@ class GeneticAlgorithmPIDTuner:
     def __init__(self):
         self._load_population_data()
 
-    def run(self):
+    def run(self, try_best: bool):
+        if try_best:
+            global CHILDREN_NUM, NUM_GENERATIONS, FITTEST_POPULATION_SIZE
+            NUM_GENERATIONS = 1
+            FITTEST_POPULATION_SIZE = 1
+            CHILDREN_NUM = 1
         for _ in range(NUM_GENERATIONS):
             if self.left_population and self.right_population:
                 left_fittest_population = select_fittest_population(
@@ -204,8 +216,12 @@ class GeneticAlgorithmPIDTuner:
                 right_fittest_population = select_fittest_population(
                     self.right_population
                 )
-                new_left_candidates = reproduce(left_fittest_population)
-                new_right_candidates = reproduce(right_fittest_population)
+                if try_best:
+                    new_left_candidates = deque(left_fittest_population.keys())
+                    new_right_candidates = deque(right_fittest_population.keys())
+                else: 
+                    new_left_candidates = reproduce(left_fittest_population)
+                    new_right_candidates = reproduce(right_fittest_population)
                 children: typing.List[
                     typing.Tuple[PIDParams, PIDParams]
                 ] = combine_left_and_right_candidates(
@@ -220,7 +236,10 @@ class GeneticAlgorithmPIDTuner:
 
             for child in children:
                 scores, test_data = start_test_and_record(child)
-                self.record_score_and_update_population(scores, child, test_data)
+                if not try_best:
+                    self.record_score_and_update_population(scores, child, test_data)
+                else:
+                    print(test_data)
 
     def record_score_and_update_population(
         self,
@@ -301,17 +320,19 @@ class GeneticAlgorithmPIDTuner:
                 pid = p[1]
                 population[pid] = score
 
-        self.left_population = {}
-        self.right_population = {}
+        self.left_population: typing.Dict[PIDParams, float] = {}
+        self.right_population: typing.Dict[PIDParams, float] = {}
         _load_single_population(self.left_population, LEFT_PERFORMANCE_FILE)
         _load_single_population(self.right_population, RIGHT_PERFORMANCE_FILE)
 
     def summarize(self):
         def _summarize_single_performance_file(performance_file):
+            # typing.List[(float, PIDParams, typing.List[float])]
             all_performances = self._read_single_performance_file(performance_file)
             print(f"============ {performance_file} ============")
-            for p in all_performances:
-                print(p)
+            # typing.Dict[PIDParams, float]
+            fittest = select_fittest_population({p[1] : p[0] for p in all_performances})
+            print(fittest)
 
         _summarize_single_performance_file(LEFT_PERFORMANCE_FILE)
         _summarize_single_performance_file(RIGHT_PERFORMANCE_FILE)
@@ -344,7 +365,11 @@ class GeneticAlgorithmPIDTuner:
 """
 if __name__ == "__main__":
     # DO NOT LAUNCH motor_controller.py. Setting node name to test_motors
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--try_best', action='store_true', help='If you have performance files already, try the best ones')
+    args = parser.parse_args()
     rospy.init_node("test_motors")
     ga_pid_tuner = GeneticAlgorithmPIDTuner()
-    ga_pid_tuner.run()
+    ga_pid_tuner.run(args.try_best)
     ga_pid_tuner.summarize()

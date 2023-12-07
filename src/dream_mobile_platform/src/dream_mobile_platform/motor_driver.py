@@ -95,7 +95,7 @@ if __name__ == "__main__":
         callback=pmc.change_speed,
         start_connection_callback=pmc.set_motors_enabled,
         no_connection_callback=pmc.set_motors_disabled,
-        debug=True,
+        debug=False,
     )
     start = time.time()
     stop = False
