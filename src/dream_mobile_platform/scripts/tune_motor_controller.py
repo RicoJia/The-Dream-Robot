@@ -51,21 +51,21 @@ RIGHT_PERFORMANCE_FILE = os.path.join(
     "RIGHT_PID_PERFORMANCE.csv",
 )
 
-KP_MIN = 0.0
-KP_MAX = 0.7
-KI_MIN = 0.5
-KI_MAX = 1.5
-KD_MIN = 0.0
-KD_MAX = 0.7
+KP_MIN = 0.1
+KP_MAX = 0.3
+KI_MIN = 0.3
+KI_MAX = 0.8
+KD_MIN = 0.1
+KD_MAX = 0.3
 TEST_TIME = 1.5
 TEST_SEQUENCE = (
     # (0.1, TEST_TIME),
     (1.0, TEST_TIME),
     (0.0, TEST_TIME),
     (0.5, TEST_TIME),
+    # (-0.5, TEST_TIME),
     # (1.0, TEST_TIME),
-    # (0.8, TEST_TIME),
-    # (0.1, TEST_TIME),
+    # (-0.8, TEST_TIME),
 )
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
