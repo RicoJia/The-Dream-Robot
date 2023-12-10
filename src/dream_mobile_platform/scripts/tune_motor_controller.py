@@ -29,7 +29,9 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 
 from simple_robotics_python_utils.controllers.pid_controllers import (
     IncrementalPIDController,
+    RegularDiscretePIDController,
     FeedforwardIncrementalPIDController,
+
 )
 from simple_robotics_python_utils.common.io import try_remove_file
 
@@ -52,8 +54,8 @@ RIGHT_PERFORMANCE_FILE = os.path.join(
 
 KP_MIN = 0.0
 KP_MAX = 0.5
-KI_MIN = 0.5
-KI_MAX = 1.0
+KI_MIN = 0.0
+KI_MAX = 0.5
 KD_MIN = 0.0
 KD_MAX = 0.5
 TEST_TIME = 1.5
@@ -82,6 +84,7 @@ RIGHT_PWM_FILE = os.path.join(
 CONTROLLER_TYPE_LOOKUP = {
     "incremental": IncrementalPIDController,
     "feedforward_incremental": FeedforwardIncrementalPIDController,
+    "regular": RegularDiscretePIDController,
 }
 
 
