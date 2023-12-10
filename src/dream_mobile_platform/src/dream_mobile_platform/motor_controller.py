@@ -11,6 +11,7 @@ from numba import njit
 import os
 
 from simple_robotics_python_utils.controllers.pid_controllers import (
+   BasePIDController,
    IncrementalPIDController,
    PIDParams 
 )
@@ -60,10 +61,8 @@ class MotorControlBench:
     We provide a step() function so the caller can conveniently controls when to issue a PWM command
     """
 
-    def __init__(self, left_pid_params: PIDParams, right_pid_params: PIDParams) -> None:
-        self.pid_controller = IncrementalPIDController(
-            left_pid_params, right_pid_params
-        )
+    def __init__(self, pid_controller: BasePIDController) -> None:
+        self.pid_controller = pid_controller
         self.encoder_status_sub = SharedMemorySub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
@@ -120,6 +119,9 @@ if __name__ == "__main__":
 
     rospy.init_node("motor_controller")
     # Find the best PID values
-    mcb = MotorControlBench(PIDParams(1, 0.3, 0.0), PIDParams(1, 0, 0))
+    pid_controller = IncrementalPIDController(
+        PIDParams(1, 0.3, 0.0), PIDParams(1, 0, 0)
+    )
+    mcb = MotorControlBench(pid_controller)
     while not rospy.is_shutdown():
         mcb.step()
