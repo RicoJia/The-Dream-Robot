@@ -50,17 +50,21 @@ RIGHT_PERFORMANCE_FILE = os.path.join(
     "RIGHT_PID_PERFORMANCE.csv",
 )
 
+KP_MIN = 0.0
 KP_MAX = 0.5
-KI_MAX = 0.5
+KI_MIN = 0.5
+KI_MAX = 1.0
+KD_MIN = 0.0
 KD_MAX = 0.5
 TEST_TIME = 1.5
 TEST_SEQUENCE = (
-    (0.1, TEST_TIME),
-    (0.6, TEST_TIME),
-    (0.2, TEST_TIME),
+    # (0.1, TEST_TIME),
     (1.0, TEST_TIME),
-    (0.8, TEST_TIME),
-    (0.1, TEST_TIME),
+    (0.0, TEST_TIME),
+    (0.5, TEST_TIME),
+    # (1.0, TEST_TIME),
+    # (0.8, TEST_TIME),
+    # (0.1, TEST_TIME),
 )
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
@@ -156,14 +160,14 @@ def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams
         initial_children.append(
             (
                 PIDParams(
-                    random.uniform(0, KP_MAX),
-                    random.uniform(0, KI_MAX),
-                    random.uniform(0, KD_MAX),
+                    random.uniform(KP_MIN, KP_MAX),
+                    random.uniform(KI_MIN, KI_MAX),
+                    random.uniform(KD_MIN, KD_MAX),
                 ),
                 PIDParams(
-                    random.uniform(0, KP_MAX),
-                    random.uniform(0, KI_MAX),
-                    random.uniform(0, KD_MAX),
+                    random.uniform(KP_MIN, KP_MAX),
+                    random.uniform(KI_MIN, KI_MAX),
+                    random.uniform(KD_MIN, KD_MAX),
                 ),
             )
         )
