@@ -19,7 +19,6 @@ from threading import Lock
 
 LEFT = 0
 RIGHT = 1
-
 class MotorOutputRecorder:
     def __init__(self, record_func: Callable[[float, Tuple[float, float]], None]) -> None:
         self._record_func = record_func
@@ -29,11 +28,12 @@ class MotorOutputRecorder:
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
             arr_size=2,
-            read_frequency=rospy.get_param("/PARAMS/ENCODER_PUB_FREQUENCY"),
+            # 50hz is too high 
+            read_frequency=10,
             callback=self._record_pwm_and_motor_speeds,
             debug=False,
         )
-        # This takes in pwm in [-1,1]
+        # This takes in pwm in [MIN_PWM,MAX_PWM]
         self.motor_commands_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
             data_type=float,
@@ -51,6 +51,9 @@ class MotorOutputRecorder:
         """We publish the same pwm to both motors"""
         with self._pub_sub_lock:
             self.pwm = pwm
+            # TODO
+            # self.motor_commands_pub.publish([0, self.pwm])
+            # self.motor_commands_pub.publish([self.pwm, 0])
             self.motor_commands_pub.publish([self.pwm, self.pwm])
 
 class MotorControlBench:

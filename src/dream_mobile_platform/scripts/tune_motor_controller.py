@@ -20,9 +20,12 @@ import csv
 import os
 
 from dream_mobile_platform.motor_controller import MotorControlBench, PIDParams, MotorOutputRecorder
+from dream_mobile_platform.motor_driver import MAX_PWM
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 
-from SimpleRoboticsPythonUtils.motor_controller import FeedforwardPIDController
+from simple_robotics_python_utils.controllers.pid_controllers import FeedforwardIncrementalPIDController
+from simple_robotics_python_utils.common.io import try_remove_file
+
 
 # Fittest population should always be smaller than CHILDREN_NUM
 FITTEST_POPULATION_SIZE = 4
@@ -44,9 +47,59 @@ TEST_SEQUENCE = (
 NUM_GENERATIONS = 4
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
-LEFT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.LEFT_FEEDFOWARD_TERMS_FILE)
-RIGHT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.RIGHT_FEEDFOWARD_TERMS_FILE)
+ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
+LEFT_PWM_FILE = os.path.join(ABSOLUTE_DIR, "test_data", FeedforwardIncrementalPIDController.LEFT_FEEDFOWARD_TERMS_FILE)
+RIGHT_PWM_FILE = os.path.join(ABSOLUTE_DIR, "test_data", FeedforwardIncrementalPIDController.RIGHT_FEEDFOWARD_TERMS_FILE)
 
+def record_feedforward_terms():
+    """Notes:
+    1. multiprocessing.Manager uses a server to hold shared objects
+        - it will only take effect if you reassign. So local operations without assigning, like
+        appending, won't do anything
+    """
+    def record_feedforward_worker(test_pwm_to_motor_speeds):
+        def record_pwm_and_two_motor_speeds(pwm: float, motor_speeds: typing.Tuple[float, float]):
+            motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
+            motor_speeds_ls.append(motor_speeds)
+            test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
+            #TODO Remember to remove
+            print(f'speed: {motor_speeds}')
+            
+        mor = MotorOutputRecorder(
+            record_func = record_pwm_and_two_motor_speeds 
+        )
+
+        # TODO
+        time.sleep(0.2)
+        for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
+            # print(f'pub pwm: {pwm}')
+            mor.pub_new_pwm(pwm)
+            time.sleep(1.5)
+
+    with Manager() as manager:
+        test_pwm_to_motor_speeds = manager.dict()
+        # Test data: typing.List[typing.Tuple[float, float]
+        test_proc = Process(
+            target=record_feedforward_worker, args=(test_pwm_to_motor_speeds,)
+        )
+        test_proc.start()
+        test_proc.join()
+        print("test_pwm", test_pwm_to_motor_speeds)
+        # Save to file
+        try_remove_file(LEFT_PWM_FILE)
+        try_remove_file(RIGHT_PWM_FILE)
+        for pwm, dual_motor_speeds in test_pwm_to_motor_speeds.items():
+            stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
+            with open(LEFT_PWM_FILE, "a") as f:
+                writer = csv.writer(f)
+                writer.writerow([pwm, np.average(np.array([s[0] for s in stable_dual_motor_speeds]))])
+            with open(RIGHT_PWM_FILE, "a") as f:
+                writer = csv.writer(f)
+                writer.writerow([pwm, np.average(np.array([s[1] for s in stable_dual_motor_speeds]))])
+
+#########################################################################################
+# GA Tool Functions
+#########################################################################################
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
     # Generate random numbers for P, I, D
@@ -189,46 +242,9 @@ def start_test_and_record(
         print(f"Scores: {scores}")
     return scores, test_data_list
 
-
-def record_feedforward_terms():
-    """Notes:
-    1. multiprocessing.Manager uses a server to hold shared objects
-        - it will only take effect if you reassign. So local operations without assigning, like
-        appending, won't do anything
-    """
-    def record_feedforward_worker(test_pwm_to_motor_speeds):
-        def record_pwm_and_two_motor_speeds(pwm: float, motor_speeds: typing.Tuple[float, float]):
-            motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
-            motor_speeds_ls.append(motor_speeds)
-            test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
-            
-        mor = MotorOutputRecorder(
-            record_func = record_pwm_and_two_motor_speeds 
-        )
-        for pwm in np.arange(-1.0, 1.0, 1):
-            mor.pub_new_pwm(pwm)
-            time.sleep(0.3)
-
-    with Manager() as manager:
-        test_pwm_to_motor_speeds = manager.dict()
-        # Test data: typing.List[typing.Tuple[float, float]
-        test_proc = Process(
-            target=record_feedforward_worker, args=(test_pwm_to_motor_speeds,)
-        )
-        test_proc.start()
-        test_proc.join()
-        print("test_pwm", test_pwm_to_motor_speeds)
-        # Save to file
-        for pwm, dual_motor_speeds in test_pwm_to_motor_speeds.items():
-            stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
-            
-            with open(LEFT_PWM_FILE, "a") as f:
-                writer = csv.writer(f)
-                writer.writerow([pwm, np.average(np.array([s[0] for s in stable_dual_motor_speeds]))])
-            with open(RIGHT_PWM_FILE, "a") as f:
-                writer = csv.writer(f)
-                writer.writerow([pwm, np.average(np.array([s[1] for s in stable_dual_motor_speeds]))])
-
+#########################################################################################
+# GA Main
+#########################################################################################
 
 class GeneticAlgorithmPIDTuner:
     """Please read me
@@ -433,6 +449,8 @@ if __name__ == "__main__":
     
     if args.controller == "feedforward_incremental":
         record_feedforward_terms()
-    # ga_pid_tuner = GeneticAlgorithmPIDTuner()
-    # ga_pid_tuner.run(args.try_best)
-    # ga_pid_tuner.summarize()
+    else:
+        # TODO
+        ga_pid_tuner = GeneticAlgorithmPIDTuner()
+        ga_pid_tuner.run(args.try_best)
+        ga_pid_tuner.summarize()

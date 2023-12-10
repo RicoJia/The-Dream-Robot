@@ -15,6 +15,7 @@ IN4 = 26
 ENA = 16
 ENB = 13
 
+MAX_PWM = 1.0
 
 class PigpioMotorControl:
     left_speed = 0.0
@@ -78,7 +79,7 @@ class PigpioMotorControl:
         self.logger.info(f"{self.__class__.__name__} cleaned up")
 
     def change_speed(self, speed: Tuple[float, float]):
-        if abs(speed[0]) > 1 or abs(speed[1]) > 1:
+        if abs(speed[0]) > MAX_PWM or abs(speed[1]) > MAX_PWM:
             self.logger.warning(f"Speed must be in [-1,1]: {speed}")
             return
         self.left_speed, self.right_speed = speed
