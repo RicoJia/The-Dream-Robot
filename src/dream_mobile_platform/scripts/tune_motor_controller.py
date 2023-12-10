@@ -97,9 +97,14 @@ def record_feedforward_terms():
         # TODO
         time.sleep(0.2)
         for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
-            print(f'pub pwm: {pwm}')
+            print(f"pub pwm: {pwm}")
             mor.pub_new_pwm(pwm)
             time.sleep(1.5)
+
+    def write_to_csv(pwm_file: str, row: typing.List[str]):
+        with open(pwm_file, "a") as f:
+            writer = csv.writer(f)
+            writer.writerow(["pwm", "speed"])
 
     with Manager() as manager:
         test_pwm_to_motor_speeds = manager.dict()
@@ -113,24 +118,24 @@ def record_feedforward_terms():
         # Save to file
         try_remove_file(LEFT_PWM_FILE)
         try_remove_file(RIGHT_PWM_FILE)
+        write_to_csv(LEFT_PWM_FILE, ["pwm", "speed"])
+        write_to_csv(RIGHT_PWM_FILE, ["pwm", "speed"])
         for pwm, dual_motor_speeds in test_pwm_to_motor_speeds.items():
             stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
-            with open(LEFT_PWM_FILE, "a") as f:
-                writer = csv.writer(f)
-                writer.writerow(
-                    [
-                        pwm,
-                        np.average(np.array([s[0] for s in stable_dual_motor_speeds])),
-                    ]
-                )
-            with open(RIGHT_PWM_FILE, "a") as f:
-                writer = csv.writer(f)
-                writer.writerow(
-                    [
-                        pwm,
-                        np.average(np.array([s[1] for s in stable_dual_motor_speeds])),
-                    ]
-                )
+            write_to_csv(
+                LEFT_PWM_FILE,
+                [
+                    pwm,
+                    np.average(np.array([s[0] for s in stable_dual_motor_speeds])),
+                ],
+            )
+            write_to_csv(
+                RIGHT_PWM_FILE,
+                [
+                    pwm,
+                    np.average(np.array([s[1] for s in stable_dual_motor_speeds])),
+                ],
+            )
 
 
 #########################################################################################
