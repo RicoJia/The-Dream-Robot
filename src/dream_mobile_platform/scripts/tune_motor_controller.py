@@ -35,9 +35,8 @@ from simple_robotics_python_utils.controllers.pid_controllers import (
 )
 from simple_robotics_python_utils.common.io import try_remove_file
 
-
 # Fittest population should always be smaller than CHILDREN_NUM
-NUM_GENERATIONS = 2
+NUM_GENERATIONS = 3
 FITTEST_POPULATION_SIZE = 4
 CHILDREN_NUM = int(FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2)
 ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,11 +52,11 @@ RIGHT_PERFORMANCE_FILE = os.path.join(
 )
 
 KP_MIN = 0.0
-KP_MAX = 0.5
-KI_MIN = 0.0
-KI_MAX = 0.5
+KP_MAX = 0.7
+KI_MIN = 0.5
+KI_MAX = 1.5
 KD_MIN = 0.0
-KD_MAX = 0.5
+KD_MAX = 0.7
 TEST_TIME = 1.5
 TEST_SEQUENCE = (
     # (0.1, TEST_TIME),
@@ -70,6 +69,7 @@ TEST_SEQUENCE = (
 )
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
+EXPLORATION_RATE = 0.5
 LEFT_PWM_FILE = os.path.join(
     ABSOLUTE_DIR,
     "test_data",
@@ -155,25 +155,25 @@ def record_feedforward_terms():
 # GA Tool Functions
 #########################################################################################
 
+def get_random_pid_params() -> typing.Tuple[PIDParams, PIDParams]:
+    return(
+        PIDParams(
+            random.uniform(KP_MIN, KP_MAX),
+            random.uniform(KI_MIN, KI_MAX),
+            random.uniform(KD_MIN, KD_MAX),
+        ),
+        PIDParams(
+            random.uniform(KP_MIN, KP_MAX),
+            random.uniform(KI_MIN, KI_MAX),
+            random.uniform(KD_MIN, KD_MAX),
+        ),
+    )
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
     # Generate random numbers for P, I, D
     initial_children = []
     for _ in range(CHILDREN_NUM):
-        initial_children.append(
-            (
-                PIDParams(
-                    random.uniform(KP_MIN, KP_MAX),
-                    random.uniform(KI_MIN, KI_MAX),
-                    random.uniform(KD_MIN, KD_MAX),
-                ),
-                PIDParams(
-                    random.uniform(KP_MIN, KP_MAX),
-                    random.uniform(KI_MIN, KI_MAX),
-                    random.uniform(KD_MIN, KD_MAX),
-                ),
-            )
-        )
+        initial_children.append(get_random_pid_params())
     return initial_children
 
 
@@ -192,6 +192,8 @@ def select_fittest_population(
     lowest_n_children = dict(sorted_population[:FITTEST_POPULATION_SIZE])
     return lowest_n_children
 
+def should_explore() -> bool:
+    return random.uniform(0.0, 1.0) < EXPLORATION_RATE
 
 def reproduce(population: typing.Dict[PIDParams, str]) -> typing.Deque[PIDParams]:
     # Take average each of them, add a mutation term to it.
@@ -202,11 +204,16 @@ def reproduce(population: typing.Dict[PIDParams, str]) -> typing.Deque[PIDParams
         pid = candidate[0]
         for another_candidate in population_ls[i + 1 :]:
             another_pid = another_candidate[0]
-            new_pid = PIDParams(
-                (pid.kp + another_pid.kp + random.uniform(0, KP_MAX)) / 3,
-                (pid.ki + another_pid.ki + random.uniform(0, KP_MAX)) / 3,
-                (pid.kd + another_pid.kd + random.uniform(0, KP_MAX)) / 3,
-            )
+            if should_explore():
+                #TODO Remember to remove
+                print(f'Exploring new PID!')
+                new_pid = get_random_pid_params()[0]
+            else:
+                new_pid = PIDParams(
+                    (pid.kp + another_pid.kp) / 2,
+                    (pid.ki + another_pid.ki) / 2,
+                    (pid.kd + another_pid.kd) / 2,
+                )
             return_population.append(new_pid)
     return return_population
 
