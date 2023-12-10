@@ -23,6 +23,8 @@ RIGHT = 1
 class MotorOutputRecorder:
     def __init__(self, record_func: Callable[[float, Tuple[float, float]], None]) -> None:
         self._record_func = record_func
+        self._pub_sub_lock = Lock()
+        self.pwm = 0
         self.encoder_status_sub = SharedMemorySub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
@@ -38,8 +40,6 @@ class MotorOutputRecorder:
             arr_size=2,
             debug=False,
         )
-        self._pub_sub_lock = Lock()
-        self.pwm = 0
 
 
     def _record_pwm_and_motor_speeds(self, motor_speeds: Tuple[float, float]):

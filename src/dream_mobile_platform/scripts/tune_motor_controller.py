@@ -185,17 +185,21 @@ def start_test_and_record(
 
 
 def record_feedforward_terms():
+    """Notes:
+    1. multiprocessing.Manager uses a server to hold shared objects
+        - it will only take effect if you reassign. So local operations without assigning, like
+        appending, won't do anything
+    """
     def record_feedforward_worker(test_pwm_to_motor_speeds):
         def record_pwm_and_two_motor_speeds(pwm: float, motor_speeds: typing.Tuple[float, float]):
-            if pwm not in test_pwm_to_motor_speeds:
-                test_pwm_to_motor_speeds[pwm] = []
-            test_pwm_to_motor_speeds[pwm].append(motor_speeds)    
+            motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
+            motor_speeds_ls.append(motor_speeds)
+            test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
             
         mor = MotorOutputRecorder(
             record_func = record_pwm_and_two_motor_speeds 
         )
         for pwm in np.arange(-1.0, 1.0, 0.05):
-            print(pwm)
             mor.pub_new_pwm(pwm)
             time.sleep(0.3)
 
@@ -208,8 +212,8 @@ def record_feedforward_terms():
         test_proc.start()
         test_proc.join()
         print("test_pwm", test_pwm_to_motor_speeds)
-        if rospy.is_shutdown():
-            exit(1)
+        # Save to file
+
 
 class GeneticAlgorithmPIDTuner:
     """Please read me
