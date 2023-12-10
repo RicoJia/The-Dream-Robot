@@ -5,124 +5,53 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
     SharedMemoryPub,
 )
 import rospy
-from collections import deque, namedtuple
-from typing import Tuple, Deque
+from typing import Tuple, Deque, Callable
 import numpy as np
 from numba import njit
+import os
 
-PIDParams = namedtuple("PIDParams", ["kp", "ki", "kd"])
+from simple_robotics_python_utils.controllers.pid_controllers import (
+   IncrementalPIDController,
+   PIDParams 
+)
+
+from threading import Lock
 
 LEFT = 0
 RIGHT = 1
-NUM_ERRORS = 2
 
-
-class IncrementalPIDController:
-    """Controller for both motors using incremental PID controller"""
-
-    def __init__(self, left_params: PIDParams, right_params: PIDParams):
-        self.kp = np.array((left_params.kp, right_params.kp))
-        self.ki = np.array((left_params.ki, right_params.ki))
-        self.kd = np.array((left_params.kd, right_params.kd))
-        self.stop_getting_wheel_vel_updates()
-        self.stop_taking_commands()
-
-    ######################################### Wheel Vel Update Functions #########################################
-    def store_speed(self, speed: Tuple[float, float]) -> None:
-        """Callback for hearing actual speeds
-
-        Args:
-            speed (Tuple[float, float]): motor speed
-        """
-        self.motor_speeds = np.asarray(speed)
-
-    def start_getting_wheel_vel_updates(self):
-        """Set flag to True. Relevant params have been reset already"""
-        # [e[k-1], e[k-2]]
-        self.getting_speed_updates = True
-
-    def stop_getting_wheel_vel_updates(self):
-        """Function that resets current speeds and errors and flag."""
-        self.getting_speed_updates = False
-        self.motor_speeds = np.array((0.0, 0.0))
-        self.errors: Deque[np.ndarray] = deque(
-            [np.zeros(2) for _ in range(NUM_ERRORS)], maxlen=NUM_ERRORS
+class MotorOutputRecorder:
+    def __init__(self, record_func: Callable[[float, Tuple[float, float]], None]) -> None:
+        self._record_func = record_func
+        self.encoder_status_sub = SharedMemorySub(
+            topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
+            data_type=float,
+            arr_size=2,
+            read_frequency=rospy.get_param("/PARAMS/ENCODER_PUB_FREQUENCY"),
+            callback=self._record_pwm_and_motor_speeds,
+            debug=False,
         )
-
-    ######################################### Commanded Wheel Vel Functions #########################################
-    def store_commanded_speed(self, speed: Tuple[float, float]) -> None:
-        """Callback for hearing commanded speed
-
-        Args:
-            speed (Tuple[float, float]): motor speed
-        """
-        self.desired_speeds = np.asarray(speed)
-
-    def start_taking_commands(self):
-        """Set flag to True. Relevant params have been reset already"""
-        self.getting_commanded_wheel_vel = True
-
-    def stop_taking_commands(self):
-        """Function that resets current speeds and pwm and flag."""
-        self.desired_speeds = np.array((0.0, 0.0))
-        self.last_pwm: np.ndarray = np.zeros(2)
-        self.getting_commanded_wheel_vel = False
-
-    def get_pwms(self) -> Tuple[float, float]:
-        """High level function to calculate current PWM.
-
-        Returns:
-            Tuple[float, float]: PWM for both motors
-        """
-        if self.getting_speed_updates and self.getting_commanded_wheel_vel:
-            # e[k] = desired_speeds[k] - motor_speeds[k]
-            e = np.asarray(self.desired_speeds) - self.motor_speeds
-            current_pwm = IncrementalPIDController.calc_pid(
-                e, self.errors, self.kp, self.ki, self.kd, self.last_pwm
-            )
-            self.errors.appendleft(e)
-            self.last_pwm = current_pwm
-            return tuple(current_pwm)
-        else:
-            return (0.0, 0.0)
-
-    @staticmethod
-    # @njit
-    def calc_pid(
-        e: np.ndarray,
-        past_errors: Deque[np.ndarray],
-        kp: np.ndarray,
-        ki: np.ndarray,
-        kd: np.ndarray,
-        last_pwm: np.ndarray,
-    ) -> np.ndarray:
-        """Util function to calculate the current pwm value.
-
-        Args:
-            e (np.ndarray): set_point - current_value
-            past_errors (np.ndarray): e[k-1], e[k-2]
-            kp (np.ndarray): 2-array for both motors
-            ki (np.ndarray): 2-array for both motors
-            kd (np.ndarray): 2-array for both motors
-            last_pwm (np.ndarray): last pwm signal
-
-        Returns:
-            np.ndarray: current pwm
-        """
-        # u[k] = kp * (e[k] - e[k-1]) + ki * e[k] + kd * (e[k] - 2 * e[k-1] + e[k-2])
-        u = (
-            kp * (e - past_errors[0])
-            + ki * e
-            + kd * (e - 2 * past_errors[0] + past_errors[1])
+        # This takes in pwm in [-1,1]
+        self.motor_commands_pub = SharedMemoryPub(
+            topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
+            data_type=float,
+            arr_size=2,
+            debug=False,
         )
-        current_pwm = u + last_pwm
-        current_pwm = np.clip(current_pwm, 0.0, 1.0)
-        return current_pwm
+        self._pub_sub_lock = Lock()
+        self.pwm = 0
 
-    def get_actual_speeds(self) -> Tuple[float, float]:
-        """Small function to get the two motor speeds"""
-        return tuple(self.motor_speeds)
 
+    def _record_pwm_and_motor_speeds(self, motor_speeds: Tuple[float, float]):
+        with self._pub_sub_lock:
+            self._record_func(self.pwm, motor_speeds)
+            
+
+    def pub_new_pwm(self, pwm: float):
+        """We publish the same pwm to both motors"""
+        with self._pub_sub_lock:
+            self.pwm = pwm
+            self.motor_commands_pub.publish([self.pwm, self.pwm])
 
 class MotorControlBench:
     """Piece of code that can be run as an individual controller, or easily called in a test bench
@@ -157,7 +86,7 @@ class MotorControlBench:
             debug=False,
         )
 
-        # This takes in pwm in [0,1]
+        # This takes in pwm in [-1,1]
         self.motor_commands_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
             data_type=float,
@@ -190,6 +119,7 @@ if __name__ == "__main__":
     # 2. add print statement for motor speed as TODO
 
     rospy.init_node("motor_controller")
+    # Find the best PID values
     mcb = MotorControlBench(PIDParams(1, 0.3, 0.0), PIDParams(1, 0, 0))
     while not rospy.is_shutdown():
         mcb.step()

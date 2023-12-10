@@ -18,7 +18,7 @@ import numpy as np
 from multiprocessing import Process, Manager
 import csv
 
-from dream_mobile_platform.motor_controller import MotorControlBench, PIDParams
+from dream_mobile_platform.motor_controller import MotorControlBench, PIDParams, MotorOutputRecorder
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 
 
@@ -183,6 +183,33 @@ def start_test_and_record(
         print(f"Scores: {scores}")
     return scores, test_data_list
 
+
+def record_feedforward_terms():
+    def record_feedforward_worker(test_pwm_to_motor_speeds):
+        def record_pwm_and_two_motor_speeds(pwm: float, motor_speeds: typing.Tuple[float, float]):
+            if pwm not in test_pwm_to_motor_speeds:
+                test_pwm_to_motor_speeds[pwm] = []
+            test_pwm_to_motor_speeds[pwm].append(motor_speeds)    
+            
+        mor = MotorOutputRecorder(
+            record_func = record_pwm_and_two_motor_speeds 
+        )
+        for pwm in np.arange(-1.0, 1.0, 0.05):
+            print(pwm)
+            mor.pub_new_pwm(pwm)
+            time.sleep(0.3)
+
+    with Manager() as manager:
+        test_pwm_to_motor_speeds = manager.dict()
+        # Test data: typing.List[typing.Tuple[float, float]
+        test_proc = Process(
+            target=record_feedforward_worker, args=(test_pwm_to_motor_speeds,)
+        )
+        test_proc.start()
+        test_proc.join()
+        print("test_pwm", test_pwm_to_motor_speeds)
+        if rospy.is_shutdown():
+            exit(1)
 
 class GeneticAlgorithmPIDTuner:
     """Please read me
@@ -373,8 +400,20 @@ if __name__ == "__main__":
         action="store_true",
         help="If you have performance files already, try the best ones",
     )
+    controller_choices = ["feedforward_incremental", "incremental"]
+    parser.add_argument(
+        "--controller", 
+        type=str, 
+        default="motor_controller", 
+        choices=controller_choices,
+        help="Which controller to use, please see choices",
+    )
+
     args = parser.parse_args()
     rospy.init_node("test_motors")
-    ga_pid_tuner = GeneticAlgorithmPIDTuner()
-    ga_pid_tuner.run(args.try_best)
-    ga_pid_tuner.summarize()
+    
+    if args.controller == "feedforward_incremental":
+        record_feedforward_terms()
+    # ga_pid_tuner = GeneticAlgorithmPIDTuner()
+    # ga_pid_tuner.run(args.try_best)
+    # ga_pid_tuner.summarize()

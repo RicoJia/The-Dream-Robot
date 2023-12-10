@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
+# README: Run this script after source devel setup.bash!
 from unittest.mock import MagicMock, patch
 from unittest import TestCase
+import sys
 
-class MockSHMPub:
-    def __init__(self, **kwargs):
-        pass
+def mock_get_param(param):
+    di = {
+        "/SHM_TOPIC/MOTOR_COMMANDS": "TEST_MOTOR_COMMANDS",
+        "/SHM_TOPIC/WHEEL_VELOCITIES": "TEST_WHEEL_VELOCITIES",
+        "/PARAMS/ENCODER_PUB_FREQUENCY": 2
+        }
+    return di[param]
+
+class TestMotorOutputRecorder(TestCase):
+    """Notes
+    1. patch() does not work for patching a function with multiple inputs
+    2. import MotorOutputRecorder after patching
+    """
+    def test_pub_new_pwm(self):
+        sys.modules["rospy"] = MagicMock()
+        sys.modules["rospy"].get_param = mock_get_param
+        from dream_mobile_platform.motor_controller import MotorOutputRecorder
+        recorder = MotorOutputRecorder(lambda pwm, speeds: None)
+        recorder.pub_new_pwm(1.0)
 
 
-# @patch("dream_mobile_platform.__init__", MagicMock(return_value=None))
-# @patch("rospy.get_param", MagicMock(return_value={"/PARAMS/WHEEL_DIAMETER": 0.041}))
-# @patch(
-#     "simple_robotics_python_utils.pubsub.shared_memory_pub_sub.SharedMemoryPub",
-#     MagicMock(return_value=MockSHMPub),
-# )
-class TestIncrementalPIDController(TestCase):
-    def test_calc_pid(self):
-        # from dream_mobile_platform.motor_controller import IncrementalPIDController
-        pass
+
