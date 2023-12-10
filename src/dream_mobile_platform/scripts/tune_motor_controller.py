@@ -37,12 +37,12 @@ from simple_robotics_python_utils.common.io import try_remove_file
 FITTEST_POPULATION_SIZE = 4
 CHILDREN_NUM = int(FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2)
 ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
-LEFT_PERFORMANCE_FILE  = os.path.join(
+LEFT_PERFORMANCE_FILE = os.path.join(
     ABSOLUTE_DIR,
     "test_data",
     "LEFT_PID_PERFORMANCE.csv",
 )
-RIGHT_PERFORMANCE_FILE  = os.path.join(
+RIGHT_PERFORMANCE_FILE = os.path.join(
     ABSOLUTE_DIR,
     "test_data",
     "RIGHT_PID_PERFORMANCE.csv",
