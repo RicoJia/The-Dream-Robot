@@ -42,7 +42,10 @@ TEST_SEQUENCE = (
     # (0.1, TEST_TIME),
 )
 NUM_GENERATIONS = 4
+# Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
+LEFT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.LEFT_FEEDFOWARD_TERMS_FILE)
+RIGHT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.RIGHT_FEEDFOWARD_TERMS_FILE)
 
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
@@ -202,7 +205,7 @@ def record_feedforward_terms():
         mor = MotorOutputRecorder(
             record_func = record_pwm_and_two_motor_speeds 
         )
-        for pwm in np.arange(-1.0, 1.0, 0.05):
+        for pwm in np.arange(-1.0, 1.0, 1):
             mor.pub_new_pwm(pwm)
             time.sleep(0.3)
 
@@ -216,17 +219,15 @@ def record_feedforward_terms():
         test_proc.join()
         print("test_pwm", test_pwm_to_motor_speeds)
         # Save to file
-    LEFT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.LEFT_FEEDFOWARD_TERMS_FILE)
-    RIGHT_PWM_FILE = os.path.join("test_data", FeedforwardPIDController.RIGHT_FEEDFOWARD_TERMS_FILE)
-    for pwm, dual_motor_speeds in test_pwm_to_motor_speeds.items():
-        stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
-        
-        with open(LEFT_PWM_FILE, "a") as f:
-            writer = csv.writer(f)
-            writer.writerow([pwm, np.average(np.array([s[0] for s in stable_dual_motor_speeds]))])
-        with open(RIGHT_PWM_FILE, "a") as f:
-            writer = csv.writer(f)
-            writer.writerow([pwm, np.average(np.array([s[1] for s in stable_dual_motor_speeds]))])
+        for pwm, dual_motor_speeds in test_pwm_to_motor_speeds.items():
+            stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
+            
+            with open(LEFT_PWM_FILE, "a") as f:
+                writer = csv.writer(f)
+                writer.writerow([pwm, np.average(np.array([s[0] for s in stable_dual_motor_speeds]))])
+            with open(RIGHT_PWM_FILE, "a") as f:
+                writer = csv.writer(f)
+                writer.writerow([pwm, np.average(np.array([s[1] for s in stable_dual_motor_speeds]))])
 
 
 class GeneticAlgorithmPIDTuner:
