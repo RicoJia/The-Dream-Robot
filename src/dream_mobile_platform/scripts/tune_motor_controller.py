@@ -19,11 +19,17 @@ from multiprocessing import Process, Manager
 import csv
 import os
 
-from dream_mobile_platform.motor_controller import MotorControlBench, PIDParams, MotorOutputRecorder
+from dream_mobile_platform.motor_controller import (
+    MotorControlBench,
+    PIDParams,
+    MotorOutputRecorder,
+)
 from dream_mobile_platform.motor_driver import MAX_PWM
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 
-from simple_robotics_python_utils.controllers.pid_controllers import FeedforwardIncrementalPIDController
+from simple_robotics_python_utils.controllers.pid_controllers import (
+    FeedforwardIncrementalPIDController,
+)
 from simple_robotics_python_utils.common.io import try_remove_file
 
 
@@ -48,8 +54,17 @@ NUM_GENERATIONS = 4
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
 ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
-LEFT_PWM_FILE = os.path.join(ABSOLUTE_DIR, "test_data", FeedforwardIncrementalPIDController.LEFT_FEEDFOWARD_TERMS_FILE)
-RIGHT_PWM_FILE = os.path.join(ABSOLUTE_DIR, "test_data", FeedforwardIncrementalPIDController.RIGHT_FEEDFOWARD_TERMS_FILE)
+LEFT_PWM_FILE = os.path.join(
+    ABSOLUTE_DIR,
+    "test_data",
+    FeedforwardIncrementalPIDController.LEFT_FEEDFOWARD_TERMS_FILE,
+)
+RIGHT_PWM_FILE = os.path.join(
+    ABSOLUTE_DIR,
+    "test_data",
+    FeedforwardIncrementalPIDController.RIGHT_FEEDFOWARD_TERMS_FILE,
+)
+
 
 def record_feedforward_terms():
     """Notes:
@@ -57,17 +72,18 @@ def record_feedforward_terms():
         - it will only take effect if you reassign. So local operations without assigning, like
         appending, won't do anything
     """
+
     def record_feedforward_worker(test_pwm_to_motor_speeds):
-        def record_pwm_and_two_motor_speeds(pwm: float, motor_speeds: typing.Tuple[float, float]):
+        def record_pwm_and_two_motor_speeds(
+            pwm: float, motor_speeds: typing.Tuple[float, float]
+        ):
             motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
             motor_speeds_ls.append(motor_speeds)
             test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
-            #TODO Remember to remove
-            print(f'speed: {motor_speeds}')
-            
-        mor = MotorOutputRecorder(
-            record_func = record_pwm_and_two_motor_speeds 
-        )
+            # TODO Remember to remove
+            print(f"speed: {motor_speeds}")
+
+        mor = MotorOutputRecorder(record_func=record_pwm_and_two_motor_speeds)
 
         # TODO
         time.sleep(0.2)
@@ -92,14 +108,26 @@ def record_feedforward_terms():
             stable_dual_motor_speeds = dual_motor_speeds[-NUM_STABLE_FEEDFORWARD_TERMS:]
             with open(LEFT_PWM_FILE, "a") as f:
                 writer = csv.writer(f)
-                writer.writerow([pwm, np.average(np.array([s[0] for s in stable_dual_motor_speeds]))])
+                writer.writerow(
+                    [
+                        pwm,
+                        np.average(np.array([s[0] for s in stable_dual_motor_speeds])),
+                    ]
+                )
             with open(RIGHT_PWM_FILE, "a") as f:
                 writer = csv.writer(f)
-                writer.writerow([pwm, np.average(np.array([s[1] for s in stable_dual_motor_speeds]))])
+                writer.writerow(
+                    [
+                        pwm,
+                        np.average(np.array([s[1] for s in stable_dual_motor_speeds])),
+                    ]
+                )
+
 
 #########################################################################################
 # GA Tool Functions
 #########################################################################################
+
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
     # Generate random numbers for P, I, D
@@ -242,9 +270,11 @@ def start_test_and_record(
         print(f"Scores: {scores}")
     return scores, test_data_list
 
+
 #########################################################################################
 # GA Main
 #########################################################################################
+
 
 class GeneticAlgorithmPIDTuner:
     """Please read me
@@ -437,16 +467,16 @@ if __name__ == "__main__":
     )
     controller_choices = ["feedforward_incremental", "incremental"]
     parser.add_argument(
-        "--controller", 
-        type=str, 
-        default="motor_controller", 
+        "--controller",
+        type=str,
+        default="motor_controller",
         choices=controller_choices,
         help="Which controller to use, please see choices",
     )
 
     args = parser.parse_args()
     rospy.init_node("test_motors")
-    
+
     if args.controller == "feedforward_incremental":
         record_feedforward_terms()
     else:
