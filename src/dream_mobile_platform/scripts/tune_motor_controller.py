@@ -36,8 +36,18 @@ from simple_robotics_python_utils.common.io import try_remove_file
 # Fittest population should always be smaller than CHILDREN_NUM
 FITTEST_POPULATION_SIZE = 4
 CHILDREN_NUM = int(FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2)
-LEFT_PERFORMANCE_FILE = "LEFT_PID_PERFORMANCE.csv"
-RIGHT_PERFORMANCE_FILE = "RIGHT_PID_PERFORMANCE.csv"
+ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
+LEFT_PERFORMANCE_FILE  = os.path.join(
+    ABSOLUTE_DIR,
+    "test_data",
+    "LEFT_PID_PERFORMANCE.csv",
+)
+RIGHT_PERFORMANCE_FILE  = os.path.join(
+    ABSOLUTE_DIR,
+    "test_data",
+    "RIGHT_PID_PERFORMANCE.csv",
+)
+
 KP_MAX = 0.5
 KI_MAX = 0.5
 KD_MAX = 0.5
@@ -53,7 +63,6 @@ TEST_SEQUENCE = (
 NUM_GENERATIONS = 4
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
-ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEFT_PWM_FILE = os.path.join(
     ABSOLUTE_DIR,
     "test_data",
