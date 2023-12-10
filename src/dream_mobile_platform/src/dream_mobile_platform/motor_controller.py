@@ -94,7 +94,9 @@ class MotorControlBench:
             topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
             data_type=float,
             arr_size=2,
-            debug=False,
+            # TODO
+            # debug=False,
+            debug=True,
         )
         self.rate = Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
 

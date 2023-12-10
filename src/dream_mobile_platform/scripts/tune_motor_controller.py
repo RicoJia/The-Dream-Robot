@@ -89,15 +89,16 @@ def record_feedforward_terms():
             motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
             motor_speeds_ls.append(motor_speeds)
             test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
-            # TODO Remember to remove
-            print(f"speed: {motor_speeds}")
+            # # TODO Remember to remove
+            # print(f"speed: {motor_speeds}")
 
         mor = MotorOutputRecorder(record_func=record_pwm_and_two_motor_speeds)
 
         # TODO
         time.sleep(0.2)
-        for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
-            # print(f'pub pwm: {pwm}')
+        # for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
+        for pwm in np.arange(-MAX_PWM, MAX_PWM , 0.7):
+            print(f'pub pwm: {pwm}')
             mor.pub_new_pwm(pwm)
             time.sleep(1.5)
 
