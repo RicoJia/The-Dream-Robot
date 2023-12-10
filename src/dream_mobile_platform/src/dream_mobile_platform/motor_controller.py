@@ -51,9 +51,6 @@ class MotorOutputRecorder:
         """We publish the same pwm to both motors"""
         with self._pub_sub_lock:
             self.pwm = pwm
-            # TODO
-            # self.motor_commands_pub.publish([0, self.pwm])
-            # self.motor_commands_pub.publish([self.pwm, 0])
             self.motor_commands_pub.publish([self.pwm, self.pwm])
 
 class MotorControlBench:
@@ -94,9 +91,7 @@ class MotorControlBench:
             topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
             data_type=float,
             arr_size=2,
-            # TODO
-            # debug=False,
-            debug=True,
+            debug=False,
         )
         self.rate = Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
 

@@ -44,6 +44,7 @@ class PigpioMotorControl:
     def set_motors_disabled(self):
         self.logger.info(f"Motors disabled")
         self.motors_enabled = False
+        self.left_speed, self.right_speed = 0.0, 0.0
 
     def set_motors_enabled(self):
         self.logger.info(f"Motors enabled")
@@ -96,9 +97,7 @@ if __name__ == "__main__":
         callback=pmc.change_speed,
         start_connection_callback=pmc.set_motors_enabled,
         no_connection_callback=pmc.set_motors_disabled,
-        # TODO
-        debug=True,
-        # debug=False,
+        debug=False,
     )
     start = time.time()
     stop = False

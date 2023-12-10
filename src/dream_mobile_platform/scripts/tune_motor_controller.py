@@ -96,8 +96,7 @@ def record_feedforward_terms():
 
         # TODO
         time.sleep(0.2)
-        # for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
-        for pwm in np.arange(-MAX_PWM, MAX_PWM , 0.7):
+        for pwm in np.arange(-MAX_PWM, MAX_PWM + 0.1, 0.1):
             print(f'pub pwm: {pwm}')
             mor.pub_new_pwm(pwm)
             time.sleep(1.5)
