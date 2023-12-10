@@ -28,12 +28,14 @@ from dream_mobile_platform.motor_driver import MAX_PWM
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
 
 from simple_robotics_python_utils.controllers.pid_controllers import (
+    IncrementalPIDController,
     FeedforwardIncrementalPIDController,
 )
 from simple_robotics_python_utils.common.io import try_remove_file
 
 
 # Fittest population should always be smaller than CHILDREN_NUM
+NUM_GENERATIONS = 2
 FITTEST_POPULATION_SIZE = 4
 CHILDREN_NUM = int(FITTEST_POPULATION_SIZE * (FITTEST_POPULATION_SIZE - 1) / 2)
 ABSOLUTE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -57,10 +59,9 @@ TEST_SEQUENCE = (
     (0.6, TEST_TIME),
     (0.2, TEST_TIME),
     (1.0, TEST_TIME),
-    # (0.8, TEST_TIME),
-    # (0.1, TEST_TIME),
+    (0.8, TEST_TIME),
+    (0.1, TEST_TIME),
 )
-NUM_GENERATIONS = 4
 # Feedforward constants
 NUM_STABLE_FEEDFORWARD_TERMS = 5
 LEFT_PWM_FILE = os.path.join(
@@ -73,6 +74,11 @@ RIGHT_PWM_FILE = os.path.join(
     "test_data",
     FeedforwardIncrementalPIDController.RIGHT_FEEDFOWARD_TERMS_FILE,
 )
+
+CONTROLLER_TYPE_LOOKUP = {
+    "incremental": IncrementalPIDController,
+    "feedforward_incremental": FeedforwardIncrementalPIDController,
+}
 
 
 def record_feedforward_terms():
@@ -231,7 +237,8 @@ def score_speed_trajectory(
 
 
 def start_test_and_record(
-    left_and_right_pid_params: typing.Tuple[PIDParams, PIDParams]
+    left_and_right_pid_params: typing.Tuple[PIDParams, PIDParams],
+    controller_type: type
 ) -> typing.Tuple[float, typing.List[float]]:
     """
     - test_output = []; will be nice to have (0.5 - [])...
@@ -251,7 +258,12 @@ def start_test_and_record(
             arr_size=2,
             debug=False,
         )
-        mcb = MotorControlBench(*left_and_right_pid_params)
+        if controller_type == FeedforwardIncrementalPIDController:
+            controller = controller_type(*left_and_right_pid_params, LEFT_PWM_FILE, RIGHT_PWM_FILE)
+        else:
+            controller = controller_type(*left_and_right_pid_params)
+        mcb = MotorControlBench(controller)
+
         # Publishing for 2 motors
         time.sleep(0.1)
         for v_set_point, test_time in TEST_SEQUENCE:
@@ -301,12 +313,14 @@ class GeneticAlgorithmPIDTuner:
     __slots__ = (
         "left_population",
         "right_population",
+        "controller_type",
         "scores",
         "commanded_wheel_vel_pub",
     )
 
-    def __init__(self):
+    def __init__(self, controller_choice: str):
         self._load_population_data()
+        self.controller_type = CONTROLLER_TYPE_LOOKUP[controller_choice]
 
     def run(self, try_best: bool):
         if try_best:
@@ -341,7 +355,7 @@ class GeneticAlgorithmPIDTuner:
                 ] = generate_initial_children()
 
             for child in children:
-                scores, test_data = start_test_and_record(child)
+                scores, test_data = start_test_and_record(child, self.controller_type)
                 if not try_best:
                     self.record_score_and_update_population(scores, child, test_data)
                 else:
@@ -468,6 +482,9 @@ class GeneticAlgorithmPIDTuner:
         1. print number of iteration
         2. Or when ctrl-C is hit.
 
+3. Detailed usage: TODO: to organize
+    1. GA reads the existing performance file and use them to generate subsequent seeds.
+        - So delete it and start testing again.
 """
 if __name__ == "__main__":
     # DO NOT LAUNCH motor_controller.py. Setting node name to test_motors
@@ -479,11 +496,16 @@ if __name__ == "__main__":
         action="store_true",
         help="If you have performance files already, try the best ones",
     )
-    controller_choices = ["feedforward_incremental", "incremental"]
+    parser.add_argument(
+        "--record_feedforward",
+        action="store_true",
+        help="If you want to test feedforward controller, you need feedforward data"
+    )
+    controller_choices = list(CONTROLLER_TYPE_LOOKUP.keys())
     parser.add_argument(
         "--controller",
         type=str,
-        default="motor_controller",
+        default="feedforward_incremental",
         choices=controller_choices,
         help="Which controller to use, please see choices",
     )
@@ -491,10 +513,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     rospy.init_node("test_motors")
 
-    if args.controller == "feedforward_incremental":
+    if args.controller == "feedforward_incremental" and args.record_feedforward:
         record_feedforward_terms()
-    else:
-        # TODO
-        ga_pid_tuner = GeneticAlgorithmPIDTuner()
-        ga_pid_tuner.run(args.try_best)
-        ga_pid_tuner.summarize()
+    # TODO: this is kind of hacky, basically, now we have performance files ending in controller type
+    LEFT_PERFORMANCE_FILE += f".{args.controller}"
+    RIGHT_PERFORMANCE_FILE += f".{args.controller}"
+    ga_pid_tuner = GeneticAlgorithmPIDTuner(args.controller)
+    ga_pid_tuner.run(args.try_best)
+    ga_pid_tuner.summarize()
