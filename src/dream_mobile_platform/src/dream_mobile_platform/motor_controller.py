@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
+"""
+sudo_ros_preserve_env rosrun dream_mobile_platform motor_controller.py <_ros_topic_commanded:=true>
+_ros_topic_commanded is used when you want to command the node with a ros topic
+"""
 from simple_robotics_python_utils.pubsub.pub_sub_utils import Rate
+from simple_robotics_python_utils.common.logger import get_logger
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
     SharedMemorySub,
     SharedMemoryPub,
 )
 import rospy
+from std_msgs.msg import Float32MultiArray
 from typing import Tuple, Deque, Callable
 import numpy as np
 from numba import njit
@@ -61,7 +67,7 @@ class MotorControlBench:
     We provide a step() function so the caller can conveniently controls when to issue a PWM command
     """
 
-    def __init__(self, pid_controller: BasePIDController) -> None:
+    def __init__(self, pid_controller: BasePIDController, ros_topic_commanded: bool = False, debug: bool = False) -> None:
         self.pid_controller = pid_controller
         self.encoder_status_sub = SharedMemorySub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
@@ -71,26 +77,42 @@ class MotorControlBench:
             callback=self.pid_controller.store_speed,
             start_connection_callback=self.pid_controller.start_getting_wheel_vel_updates,
             no_connection_callback=self.pid_controller.stop_getting_wheel_vel_updates,
-            debug=False,
+            debug=debug,
         )
 
-        self.commanded_wheel_vel_sub = SharedMemorySub(
-            topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
-            data_type=float,
-            arr_size=2,
-            read_frequency=rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"),
-            callback=self.pid_controller.store_commanded_speed,
-            start_connection_callback=self.pid_controller.start_taking_commands,
-            no_connection_callback=self.pid_controller.stop_taking_commands,
-            debug=False,
-        )
+        if ros_topic_commanded:
+            # For testing purposes only
+            def ros_topic_commanded_cb(msg):
+                #TODO Remember to remove
+                print(f'msg: {type(msg.data)}')
+                self.pid_controller.store_commanded_speed(msg.data)
+                #TODO Remember to remove
+                print(f'Rico: {self.pid_controller.getting_speed_updates, self.pid_controller.getting_commanded_wheel_vel, self.pid_controller.get_pwms()}')
+                
+            self.pid_controller.start_taking_commands()
+            self.commanded_wheel_vel_sub = rospy.Subscriber(
+                rospy.get_param("/ROS_TOPIC/COMMANDED_WHEEL_VELOCITY"),
+                Float32MultiArray,
+                ros_topic_commanded_cb 
+            )
+        else: 
+            self.commanded_wheel_vel_sub = SharedMemorySub(
+                topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
+                data_type=float,
+                arr_size=2,
+                read_frequency=rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"),
+                callback=self.pid_controller.store_commanded_speed,
+                start_connection_callback=self.pid_controller.start_taking_commands,
+                no_connection_callback=self.pid_controller.stop_taking_commands,
+                debug=debug,
+            )
 
         # This takes in pwm in [-1,1]
         self.motor_commands_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/MOTOR_COMMANDS"),
             data_type=float,
             arr_size=2,
-            debug=False,
+            debug=debug,
         )
         self.rate = Rate(rospy.get_param("/PARAMS/MOTOR_PUB_FREQUENCY"))
 
@@ -114,13 +136,17 @@ class MotorControlBench:
 
 
 if __name__ == "__main__":
-    # How to test:
 
-    rospy.init_node("motor_controller")
+    node_name = "motor_controller"
+    rospy.init_node(node_name)
+    logger = get_logger(node_name)
+    logger.info(f"{node_name} has been initialized")
     # Read the best PID values
     pid_controller = IncrementalPIDController(
-        PIDParams(1, 0.3, 0.0), PIDParams(1, 0, 0)
+        PIDParams(kp=0.1749101893319113, ki=0.5571171679053859, kd=0.20820277348684704),
+        PIDParams(kp=0.20000500208283406, ki=0.7119903002267702, kd=0.20023357363417132)
     )
-    mcb = MotorControlBench(pid_controller)
+    ros_topic_commanded = rospy.get_param("~ros_topic_commanded", False)
+    mcb = MotorControlBench(pid_controller, ros_topic_commanded)
     while not rospy.is_shutdown():
         mcb.step()
