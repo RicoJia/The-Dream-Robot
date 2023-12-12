@@ -102,7 +102,6 @@ def record_feedforward_terms():
             motor_speeds_ls = test_pwm_to_motor_speeds.get(pwm, [])
             motor_speeds_ls.append(motor_speeds)
             test_pwm_to_motor_speeds[pwm] = motor_speeds_ls
-            # # TODO Remember to remove
             # print(f"speed: {motor_speeds}")
 
         mor = MotorOutputRecorder(record_func=record_pwm_and_two_motor_speeds)
@@ -519,7 +518,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--controller",
         type=str,
-        default="feedforward_incremental",
+        default="incremental",
         choices=controller_choices,
         help="Which controller to use, please see choices",
     )

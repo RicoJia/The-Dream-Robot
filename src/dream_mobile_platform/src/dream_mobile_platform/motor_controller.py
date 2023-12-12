@@ -115,10 +115,9 @@ class MotorControlBench:
 
 if __name__ == "__main__":
     # How to test:
-    # 2. add print statement for motor speed as TODO
 
     rospy.init_node("motor_controller")
-    # Find the best PID values
+    # Read the best PID values
     pid_controller = IncrementalPIDController(
         PIDParams(1, 0.3, 0.0), PIDParams(1, 0, 0)
     )
