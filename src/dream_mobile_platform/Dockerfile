@@ -33,21 +33,42 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
+    # useful for git complete
+    bash-completion \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade opencv-python==4.6.0.66 websockets==10.4 RPi.GPIO posix_ipc
+RUN pip3 install --upgrade opencv-python==4.6.0.66 \
+ websockets==10.4 \
+ numpy==1.22.4 RPi.GPIO posix_ipc  numba==0.56.0
 
 RUN wget https://github.com/joan2937/pigpio/archive/master.zip && unzip master.zip && cd pigpio-master && make && sudo make install
+
+# Making the image have the same user privilege as the host user
+# Unique numbers for each group and user. 1000 is the first regular number
+ARG UNAME="dream_robot"
+ARG UID=1000
+ARG GID=1000
+RUN adduser --disabled-password --gecos '' ${UNAME}
+RUN adduser ${UNAME} sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# RUN groupadd -f -g $GID $UNAME && \
+# id -u $UNAME || useradd -m -u $UID -g $GID -s /bin/bash $UNAME
+
+# This could be a security concern, but it's for convenience
+# Set the image to run as the user
+USER $UNAME
 
 # Env variables will persist across images
 ENV WORKDIRECTORY="/home/The-Dream-Robot"
 ENV PATH="${WORKDIRECTORY}/src/dream_mobile_platform/bin:${PATH}"
+# ENV TERM="xterm-256color"
 
 WORKDIR ${WORKDIRECTORY}
 
 # Must use 
 RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
-    echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc
+    echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
+    echo 'source "${WORKDIRECTORY}/src/dream_mobile_platform/dream_bashrc.sh"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
 CMD /bin/bash
 

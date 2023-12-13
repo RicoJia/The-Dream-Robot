@@ -20,4 +20,15 @@ Features
 3. Start the byobu services using "dream_byobu". `dream_byobu <-l> <-b>`
     - Each input arg is optional. See documentation with `dream_byobu -h`
     
+## Motor Control
+
+Diagram
+
+```mermaid
+graph TB
+A["MOTOR_CONTROLLER"] -->|/SHM_TOPIC/MOTOR_COMMANDS| B["MOTOR_DRIVER"] --> C["MOTORS"] --> D["MOTOR_ENCODER"] --> |/SHM_TOPIC/WHEEL_VELOCITIES|A
+
+E["LOCAL_PLANNER OR TEST BENCH"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| A
+```
+
 

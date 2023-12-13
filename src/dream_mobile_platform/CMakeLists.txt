@@ -208,5 +208,8 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 if(CATKIN_ENABLE_TESTING)
-    catkin_add_nosetests(tests/unit/test_motor_encoder.py)
+    file(GLOB ${PROJECT_NAME}_UNIT_TEST_FILES tests/unit/*.py)
+    foreach(_test_file ${${PROJECT_NAME}_UNIT_TEST_FILES})
+        catkin_add_nosetests(${_test_file})
+    endforeach()
 endif()

@@ -7,13 +7,17 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemo
 import rospy
 import typing
 import time
+# from numba import njit
+
 
 def get_pigpio():
-    """ we have this funky function so it could make testing easier, since
+    """we have this funky function so it could make testing easier, since
     pigpio is only installed on rpi
     """
     import pigpio
+
     return pigpio
+
 
 LEFT_PHASE_A = 7
 RIGHT_PHASE_A = 6
@@ -101,8 +105,8 @@ class PigpioDecoder:
             self.count = PigpioDecoder.count_wrap(self.count)
 
     def get_angle(self):
-        """return angle in degree in [0, 360)"""
-        return self.count * 360 / CPR
+        """Applied after count wrap [0, CPR), return angle in [0, 2pi)"""
+        return self.count * 2 * np.pi / CPR
 
     def cancel(self):
         self.cbA.cancel()
@@ -110,7 +114,9 @@ class PigpioDecoder:
 
     @staticmethod
     def count_wrap(count):
+        """count is in [0, CPR)"""
         return count % CPR
+
 
 class EncoderReader:
     def __init__(self) -> None:
@@ -118,35 +124,49 @@ class EncoderReader:
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
             arr_size=2,
-            debug=False
+            debug=False,
         )
         self.last_wheel_pos_np = np.zeros(2)
         self.last_wheel_time = time.perf_counter()
         print(f"{self.__class__.__name__} has been initialized")
 
+    @staticmethod
+    # @njit
+    def angle_wrap_wheel_diff(angle: float):
+        """Input angle: [-2pi, 2pi), wrapping angles to [-pi, pi)"""
+        diff = (angle + np.pi) % (2 * np.pi) - np.pi
+        return -np.pi if diff == np.pi else diff
+
     def get_angle_diffs(self, current_wheel_angles: typing.List[float]) -> np.ndarray:
-        """compute wheel velocities
+        """compute angle-wrapped wheel differences
 
         Args:
-            current_wheel_angles (typing.List[float]): wheel angles in [0, 360)
+            current_wheel_angles (typing.List[float]): wheel angles in [0, 2pi)
 
         Returns:
-            typing.List[float]: wheel velocities in m/s
+            typing.List[float]: wheel velocities in [-pi, pi)
         """
-        def angle_wrap(angle):
-            return angle % 360
 
         # get_angle_diffs
         current_wheel_angles_np = np.asarray(current_wheel_angles, dtype=float)
         wheel_diffs = current_wheel_angles_np - self.last_wheel_pos_np
-        wheel_diffs = np.asarray(list(map(lambda x: angle_wrap(x), wheel_diffs)))
+        wheel_diffs = np.asarray(
+            list(map(lambda x: self.angle_wrap_wheel_diff(x), wheel_diffs))
+        )
         self.last_wheel_pos_np = current_wheel_angles_np
         return wheel_diffs
 
     def pub_velocities(self, current_wheel_angles: typing.List[float]):
+        """Calculate and publish wheel velocities based on the current wheel angles
+
+        Args:
+            current_wheel_angles (typing.List[float]): two wheel angles in radians
+        """
         angle_diffs: np.ndarray = self.get_angle_diffs(current_wheel_angles)
         curr_time = time.perf_counter()
-        angle_velocities = angle_diffs/(curr_time - self.last_wheel_time)
+        angle_velocities = (
+            WHEEL_DIAMETER * angle_diffs / (curr_time - self.last_wheel_time)
+        )
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
 
@@ -158,7 +178,5 @@ if __name__ == "__main__":
     e = EncoderReader()
     r = Rate(50)
     while not rospy.is_shutdown():
-        e.pub_velocities(
-           [left_decoder.get_angle(), right_decoder.get_angle()] 
-        )
+        e.pub_velocities([left_decoder.get_angle(), right_decoder.get_angle()])
         r.sleep()
