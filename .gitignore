@@ -4,5 +4,3 @@ logs/*
 .catkin_tools/*
 .catkin_workspace
 __pycache__/
-
-PID_PERFORMANCE.csv
