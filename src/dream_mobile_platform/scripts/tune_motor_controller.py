@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """
-1. launch a process for a chosen set of PID values
-2. Scoring system:
-    reaching 0.1m/s, read motor speed for 5s. score: sum|score|
-3. Record (kp, ki, kd): score in a csv file as a 'database'. So later it can be read
+How this program works:
+    1. launch a process for a chosen set of PID values. Plug them into MotorTestBench
+        1. There's a sequence of motor speeds and durations to run through
+        2. Record the actual motor speeds, and timestamps of each change in commanded speed
+    2. Scoring system:
+        - score in a csv file as a 'database'. So later it can be read
+    3. Record the score (kp, ki, kd): 
+
+- Motor
+    - todo: controller tuning should be controller agnostic
+
 How to run this
 1. start container
 2. sudo_ros_preserve_env rosrun dream_mobile_platform tune_motor_controller.py <--try_best>
+3. For FeedforwardFeedbackController, If no file exists, ask the user if they want to proceed and record
 """
 
 from collections import deque
@@ -31,7 +39,6 @@ from simple_robotics_python_utils.controllers.pid_controllers import (
     IncrementalPIDController,
     RegularDiscretePIDController,
     FeedforwardIncrementalPIDController,
-
 )
 from simple_robotics_python_utils.common.io import try_remove_file
 
@@ -154,8 +161,9 @@ def record_feedforward_terms():
 # GA Tool Functions
 #########################################################################################
 
+
 def get_random_pid_params() -> typing.Tuple[PIDParams, PIDParams]:
-    return(
+    return (
         PIDParams(
             random.uniform(KP_MIN, KP_MAX),
             random.uniform(KI_MIN, KI_MAX),
@@ -167,6 +175,7 @@ def get_random_pid_params() -> typing.Tuple[PIDParams, PIDParams]:
             random.uniform(KD_MIN, KD_MAX),
         ),
     )
+
 
 def generate_initial_children() -> typing.List[typing.Tuple[PIDParams, PIDParams]]:
     # Generate random numbers for P, I, D
@@ -191,8 +200,10 @@ def select_fittest_population(
     lowest_n_children = dict(sorted_population[:FITTEST_POPULATION_SIZE])
     return lowest_n_children
 
+
 def should_explore() -> bool:
     return random.uniform(0.0, 1.0) < EXPLORATION_RATE
+
 
 def reproduce(population: typing.Dict[PIDParams, str]) -> typing.Deque[PIDParams]:
     # Take average each of them, add a mutation term to it.
@@ -204,8 +215,8 @@ def reproduce(population: typing.Dict[PIDParams, str]) -> typing.Deque[PIDParams
         for another_candidate in population_ls[i + 1 :]:
             another_pid = another_candidate[0]
             if should_explore():
-                #TODO Remember to remove
-                print(f'Exploring new PID!')
+                # TODO Remember to remove
+                print(f"Exploring new PID!")
                 new_pid = get_random_pid_params()[0]
             else:
                 new_pid = PIDParams(
@@ -250,8 +261,7 @@ def score_speed_trajectory(
 
 
 def start_test_and_record(
-    left_and_right_pid_params: typing.Tuple[PIDParams, PIDParams],
-    controller_type: type
+    left_and_right_pid_params: typing.Tuple[PIDParams, PIDParams], controller_type: type
 ) -> typing.Tuple[float, typing.List[float]]:
     """
     - test_output = []; will be nice to have (0.5 - [])...
@@ -272,7 +282,9 @@ def start_test_and_record(
             debug=False,
         )
         if controller_type == FeedforwardIncrementalPIDController:
-            controller = controller_type(*left_and_right_pid_params, LEFT_PWM_FILE, RIGHT_PWM_FILE)
+            controller = controller_type(
+                *left_and_right_pid_params, LEFT_PWM_FILE, RIGHT_PWM_FILE
+            )
         else:
             controller = controller_type(*left_and_right_pid_params)
         mcb = MotorControlBench(controller)
@@ -512,7 +524,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--record_feedforward",
         action="store_true",
-        help="If you want to test feedforward controller, you need feedforward data"
+        help="If you want to test feedforward controller, you need feedforward data",
     )
     controller_choices = list(CONTROLLER_TYPE_LOOKUP.keys())
     parser.add_argument(

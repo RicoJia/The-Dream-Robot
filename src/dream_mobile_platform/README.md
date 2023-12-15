@@ -22,13 +22,14 @@ Features
     
 ## Motor Control
 
-Diagram
+Production Digram
 
 ```mermaid
 graph TB
 A["MOTOR_CONTROLLER"] -->|/SHM_TOPIC/MOTOR_COMMANDS| B["MOTOR_DRIVER"] --> C["MOTORS"] --> D["MOTOR_ENCODER"] --> |/SHM_TOPIC/WHEEL_VELOCITIES|A
 
-E["LOCAL_PLANNER OR TEST BENCH"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| A
+F["Keyboard Gamepad"] -->|/ROS_TOPIC/CMD_VEL| G["cmd_vel_to_motor_commands"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| A
+H["LOCAL_PLANNER"] -->|/ROS_TOPIC/CMD_VEL| G["cmd_vel_to_motor_commands"]
 ```
 
-
+Motor Tuning: please see [the motor tuning script](scripts/tune_motor_controller.py)
