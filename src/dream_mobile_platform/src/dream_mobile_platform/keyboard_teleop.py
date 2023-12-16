@@ -18,13 +18,20 @@ How this script works:
 
 How to run this script, in a remote container
     1. on hostmachine, xhost local:root
-    2. docker run -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro ...
+    2. SSH -Y ...
+    2. sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged   ricojia/rpi-dream-mobile-platform
+    3. sudo rosrun dream_mobile_platform keyboard_teleop.py
 """
 
 from pynput import keyboard
 import numpy as np
 import typing
 import sys
+
+from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
+    SharedMemoryPub,
+)
+import rospy
 
 # Convention: [abs(lin_vel), abs(ang_vel)]
 MIN_VEL = np.zeros(2)
@@ -81,7 +88,7 @@ def add_or_remove_key(
 
 
 # Calculate velocity using abs values. Their signs are determined by the arrow keys
-def keyboard_event_analyzer(event):
+def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
     clear_line()
     add_or_remove_key(event.key, isinstance(event, keyboard.Events.Press))
     global vel
@@ -98,13 +105,23 @@ def keyboard_event_analyzer(event):
         print(f"Modified Vel: {vel}")
     if SPECIALS:
         print(f"return_vel {return_vel}")
+        commanded_wheel_vel_pub.publish(tuple(return_vel))
+    else:
+        # publish zeros since we have no commands
+        commanded_wheel_vel_pub.publish([0.0, 0.0])
 
 
 if __name__ == "__main__":
     # The event listener will be running in this block
+    commanded_wheel_vel_pub = SharedMemoryPub(
+        topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
+        data_type=float,
+        arr_size=2,
+        debug=False,
+    )
     with keyboard.Events() as events:
         for event in events:
             if event.key == keyboard.Key.esc:
                 break
             else:
-                keyboard_event_analyzer(event)
+                keyboard_event_analyzer(event, commanded_wheel_vel_pub)
