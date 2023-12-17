@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # This file is adopted from
 # https://github.com/ros-teleop/teleop_twist_keyboard/blob/master/teleop_twist_keyboard.py
 
@@ -20,7 +20,7 @@ How to run this script, in a remote container
     1. on hostmachine, xhost local:root
     2. SSH -Y ...
     2. sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged   ricojia/rpi-dream-mobile-platform
-    3. sudo rosrun dream_mobile_platform keyboard_teleop.py
+    3. sudo_ros_preserve_env rosrun dream_mobile_platform keyboard_teleop.py
 """
 
 from pynput import keyboard
@@ -32,10 +32,12 @@ from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
     SharedMemoryPub,
 )
 import rospy
+from geometry_msgs.msg import Twist
+
 
 # Convention: [abs(lin_vel), abs(ang_vel)]
 MIN_VEL = np.zeros(2)
-MAX_VEL = np.array([1.0, 0.5])
+MAX_VEL = np.array([1.0, 3.14])
 LIN_INCREMENT = np.array([0.02, 0.0])
 ANG_INCREMENT = np.array([0.0, 0.02])
 CHARS = set()
@@ -101,23 +103,28 @@ def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
         if action in SPECIALS:
             return_vel = action_func(return_vel, vel)
 
+    msg = Twist()
     if CHARS:
         print(f"Modified Vel: {vel}")
     if SPECIALS:
         print(f"return_vel {return_vel}")
-        commanded_wheel_vel_pub.publish(tuple(return_vel))
-    else:
-        # publish zeros since we have no commands
-        commanded_wheel_vel_pub.publish([0.0, 0.0])
+        msg.linear.x = return_vel[0]
+        msg.angular.z = return_vel[1]
+        commanded_wheel_vel_pub.publish(msg)
+    elif not SPECIALS and not CHARS:
+        msg.linear.x = return_vel[0]
+        msg.angular.z = return_vel[1]
+        commanded_wheel_vel_pub.publish(msg)
+         
 
 
 if __name__ == "__main__":
     # The event listener will be running in this block
-    commanded_wheel_vel_pub = SharedMemoryPub(
-        topic=rospy.get_param("/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY"),
-        data_type=float,
-        arr_size=2,
-        debug=False,
+    rospy.init_node("keyboard_teleop")
+    commanded_wheel_vel_pub = rospy.Publisher(
+        rospy.get_param("/ROS_TOPIC/CMD_VEL"),
+        Twist,
+        queue_size = 5
     )
     with keyboard.Events() as events:
         for event in events:

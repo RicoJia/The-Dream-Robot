@@ -169,6 +169,9 @@ class EncoderReader:
         )
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
+        # TODO
+        #TODO Remember to remove
+        print(f'{time.time()}, encoder: {angle_velocities}')
 
 
 if __name__ == "__main__":
