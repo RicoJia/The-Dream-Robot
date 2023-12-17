@@ -34,13 +34,15 @@ class CmdvelToMotorCommands:
         angular_vel = msg.angular.z
         # Compute velocities for each wheel
         left_wheel_vel = linear_vel - (self.wheel_base / 2.0) * angular_vel
-        right_wheel_vel = linear_vel + (self.wheel_base / 2.0) * angular_vel
+        # Note, we want to negate right_wheel_vel, because its positive direction
+        # on the robot makes it go backwards
+        right_wheel_vel = -(linear_vel + (self.wheel_base / 2.0) * angular_vel)
 
         # Publish wheel velocities in m/s
         self.wheel_vel_pub.publish([left_wheel_vel, right_wheel_vel])
         
         #TODO Remember to remove
-        print(f'Rico: received {msg}')
+        # print(f'Rico: received {msg}')
 
 
 if __name__ == "__main__":

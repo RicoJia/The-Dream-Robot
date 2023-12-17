@@ -37,7 +37,7 @@ from geometry_msgs.msg import Twist
 
 # Convention: [abs(lin_vel), abs(ang_vel)]
 MIN_VEL = np.zeros(2)
-MAX_VEL = np.array([1.0, 0.5])
+MAX_VEL = np.array([1.0, 3.14])
 LIN_INCREMENT = np.array([0.02, 0.0])
 ANG_INCREMENT = np.array([0.0, 0.02])
 CHARS = set()
@@ -108,9 +108,14 @@ def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
         print(f"Modified Vel: {vel}")
     if SPECIALS:
         print(f"return_vel {return_vel}")
-    msg.linear.x = return_vel[0]
-    msg.angular.z = return_vel[1]
-    commanded_wheel_vel_pub.publish(msg)
+        msg.linear.x = return_vel[0]
+        msg.angular.z = return_vel[1]
+        commanded_wheel_vel_pub.publish(msg)
+    elif not SPECIALS and not CHARS:
+        msg.linear.x = return_vel[0]
+        msg.angular.z = return_vel[1]
+        commanded_wheel_vel_pub.publish(msg)
+         
 
 
 if __name__ == "__main__":
