@@ -28,7 +28,7 @@ PPR = 374
 # Counts Per Revolution
 CPR = PPR * 4
 # in meter
-WHEEL_DIAMETER = rospy.get_param("/PARAMS/WHEEL_DIAMETER")
+WHEEL_RADIUS = rospy.get_param("/PARAMS/WHEEL_DIAMETER")/2.0
 
 
 ##########################################################
@@ -165,7 +165,7 @@ class EncoderReader:
         angle_diffs: np.ndarray = self.get_angle_diffs(current_wheel_angles)
         curr_time = time.perf_counter()
         angle_velocities = (
-            WHEEL_DIAMETER * angle_diffs / (curr_time - self.last_wheel_time)
+            WHEEL_RADIUS * angle_diffs / (curr_time - self.last_wheel_time)
         )
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
