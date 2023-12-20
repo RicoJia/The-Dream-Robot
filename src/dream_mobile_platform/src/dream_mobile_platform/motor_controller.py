@@ -68,6 +68,12 @@ class MotorControlBench:
 
     In it, we launch the necessary publishers and subscribers, and of course, the controller itself.
     We provide a step() function so the caller can conveniently controls when to issue a PWM command
+
+    Notes:
+    - Brushed DC has a PWM accepting window, so make sure PWM commands are published at a high enough rate
+        Otherwise, the motor will stutter
+    - Motor speed publishing is crucial. If the encoder is not fast enough, that could drive the controller crazy
+        if the controller response time is short
     """
 
     def __init__(

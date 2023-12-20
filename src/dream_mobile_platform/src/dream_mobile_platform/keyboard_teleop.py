@@ -44,6 +44,10 @@ CHARS = set()
 SPECIALS = set()
 
 vel = np.zeros(2)
+
+# Note on why this dict takes in a str:
+# The pynput library currently considers two Keycode objects of the same char DIFFERENT.
+# That's not an expected behavior
 CHAR_ACTIONS: typing.Dict[str, typing.Callable[[np.ndarray], np.ndarray]] = {
     "w": lambda vel: np.minimum(vel + LIN_INCREMENT, MAX_VEL),
     "s": lambda vel: np.maximum(vel - LIN_INCREMENT, MIN_VEL),
