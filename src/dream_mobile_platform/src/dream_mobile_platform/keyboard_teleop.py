@@ -19,8 +19,9 @@ How this script works:
 How to run this script, in a remote container
     1. on hostmachine, xhost local:root
     2. SSH -Y ...
-    2. sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged   ricojia/rpi-dream-mobile-platform
-    3. sudo_ros_preserve_env rosrun dream_mobile_platform keyboard_teleop.py
+    3. sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged   ricojia/rpi-dream-mobile-platform
+    4. sudo_ros_preserve_env rosrun dream_mobile_platform keyboard_teleop.py
+    5. Hit <ESC to quit>
 """
 
 from pynput import keyboard
