@@ -141,9 +141,9 @@ class MotorControlBench:
         Also, we are sleeping according to the rate.
         """
         pwm = self.pid_controller.get_pwms()
-        #TODO Remember to remove
         self.motor_commands_pub.publish(list(pwm))
-        print(f'{rospy.get_time()}, pwm: {pwm}, desired_speeds: {self.pid_controller.desired_speeds}, actual speed: {self.pid_controller.get_actual_speeds()}')
+        #TODO Remember to remove
+        # print(f'{rospy.get_time()}, pwm: {pwm}, desired_speeds: {self.pid_controller.desired_speeds}, actual speed: {self.pid_controller.get_actual_speeds()}')
         self.rate.sleep()
 
 
