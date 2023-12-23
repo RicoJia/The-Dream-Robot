@@ -33,3 +33,6 @@ H["LOCAL_PLANNER"] -->|/ROS_TOPIC/CMD_VEL| G["cmd_vel_to_motor_commands"]
 ```
 
 Motor Tuning: please see [the motor tuning script](scripts/tune_motor_controller.py)
+
+### Usage
+- Modify `/PARAMS/DEBUG_MOTORS` in dream_resource_registry so we can print debug messages on the spot

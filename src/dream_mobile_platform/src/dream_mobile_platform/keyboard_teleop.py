@@ -29,9 +29,8 @@ import numpy as np
 import typing
 import sys
 
-from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import (
-    SharedMemoryPub,
-)
+from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
+from simple_robotics_python_utils.common.logger import get_logger
 import rospy
 from geometry_msgs.msg import Twist
 
@@ -40,7 +39,7 @@ from geometry_msgs.msg import Twist
 MIN_VEL = np.zeros(2)
 MAX_VEL = np.array([1.0, 3.14])
 LIN_INCREMENT = np.array([0.02, 0.0])
-ANG_INCREMENT = np.array([0.0, 0.02])
+ANG_INCREMENT = np.array([0.0, 0.1])
 CHARS = set()
 SPECIALS = set()
 
@@ -95,7 +94,7 @@ def add_or_remove_key(
 
 
 # Calculate velocity using abs values. Their signs are determined by the arrow keys
-def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
+def keyboard_event_analyzer(event, commanded_wheel_vel_pub, logger):
     clear_line()
     add_or_remove_key(event.key, isinstance(event, keyboard.Events.Press))
     global vel
@@ -110,9 +109,9 @@ def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
 
     msg = Twist()
     if CHARS:
-        print(f"Modified Vel: {vel}")
+        logger.info(f"Modified Vel: {vel}")
     if SPECIALS:
-        print(f"return_vel {return_vel}")
+        logger.info(f"return_vel {return_vel}")
         msg.linear.x = return_vel[0]
         msg.angular.z = return_vel[1]
         commanded_wheel_vel_pub.publish(msg)
@@ -125,7 +124,10 @@ def keyboard_event_analyzer(event, commanded_wheel_vel_pub):
 
 if __name__ == "__main__":
     # The event listener will be running in this block
-    rospy.init_node("keyboard_teleop")
+    node_name = "keyboard_teleop"
+    rospy.init_node(node_name)
+    debug = rospy.get_param("/PARAMS/DEBUG_MOTORS")
+    logger = get_logger(name=node_name, print_level="DEBUG" if debug else "INFO")
     commanded_wheel_vel_pub = rospy.Publisher(
         rospy.get_param("/ROS_TOPIC/CMD_VEL"),
         Twist,
@@ -136,4 +138,4 @@ if __name__ == "__main__":
             if event.key == keyboard.Key.esc:
                 break
             else:
-                keyboard_event_analyzer(event, commanded_wheel_vel_pub)
+                keyboard_event_analyzer(event, commanded_wheel_vel_pub, logger)

@@ -4,6 +4,7 @@ import numpy as np
 
 from simple_robotics_python_utils.pubsub.pub_sub_utils import Rate
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
+from simple_robotics_python_utils.common.logger import get_logger
 import rospy
 import typing
 import time
@@ -119,7 +120,7 @@ class PigpioDecoder:
 
 
 class EncoderReader:
-    def __init__(self) -> None:
+    def __init__(self, logger) -> None:
         self._encoder_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
@@ -128,7 +129,7 @@ class EncoderReader:
         )
         self.last_wheel_pos_np = np.zeros(2)
         self.last_wheel_time = time.perf_counter()
-        print(f"{self.__class__.__name__} has been initialized")
+        logger.info(f"{self.__class__.__name__} has been initialized")
 
     @staticmethod
     # @njit
@@ -171,14 +172,18 @@ class EncoderReader:
         self._encoder_pub.publish(list(angle_velocities))
         # TODO
         #TODO Remember to remove
-        print(f'{time.time()}, encoder: {angle_velocities}')
+        logger.debug(f'encoder: {angle_velocities}')
 
 
 if __name__ == "__main__":
-    rospy.init_node("~encoder_reader")
+    # use ~ so it will get the parent group's namespace
+    node_name = "encoder_reader"
+    rospy.init_node(f"~{node_name}")
+    debug = rospy.get_param("/PARAMS/DEBUG_MOTORS")
+    logger = get_logger(name=node_name, print_level="DEBUG" if debug else "INFO")
     left_decoder = PigpioDecoder(LEFT_PHASE_A, LEFT_PHASE_B)
     right_decoder = PigpioDecoder(RIGHT_PHASE_A, RIGHT_PHASE_B)
-    e = EncoderReader()
+    e = EncoderReader(logger)
     r = Rate(50)
     while not rospy.is_shutdown():
         e.pub_velocities([left_decoder.get_angle(), right_decoder.get_angle()])
