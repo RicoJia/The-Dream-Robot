@@ -76,5 +76,8 @@ byobu send-keys -t $SESSION_NAME:"low_level_drivers" "sudo pigpiod && sudo -E /b
 byobu split-window -v -t $SESSION_NAME:"low_level_drivers"
 byobu send-keys -t $SESSION_NAME:"low_level_drivers".1 "sudo_ros_preserve_env rosrun dream_mobile_platform motor_controller.py ${SEND_KEY}"
 
+byobu split-window -h -t $SESSION_NAME:"low_level_drivers"
+byobu send-keys -t $SESSION_NAME:"low_level_drivers".2 "sudo_ros_preserve_env rosrun dream_mobile_platform keyboard_teleop.py ${SEND_KEY}"
+
 # Attach to the session.
 byobu attach -t $SESSION_NAME
