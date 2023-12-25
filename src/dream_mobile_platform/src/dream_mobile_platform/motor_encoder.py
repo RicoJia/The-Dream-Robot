@@ -170,8 +170,6 @@ class EncoderReader:
         )
         self.last_wheel_time = curr_time
         self._encoder_pub.publish(list(angle_velocities))
-        # TODO
-        #TODO Remember to remove
         logger.debug(f'encoder: {angle_velocities}')
 
 
