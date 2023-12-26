@@ -65,5 +65,8 @@ RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
     echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
     echo 'source "${WORKDIRECTORY}/src/dream_mobile_platform/dream_bashrc.sh"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
+# ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var, but not functions. 
+# That's why we do NOT put feature flags in a dream_bashrc.sh
+ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
 CMD /bin/bash
 

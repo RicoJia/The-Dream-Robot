@@ -1,0 +1,3 @@
+# Feature Flags
+export USE_ROS_TOPICS=True
+export SIM=True
