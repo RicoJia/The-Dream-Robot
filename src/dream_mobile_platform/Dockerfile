@@ -27,6 +27,15 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
+    # TODO: these can be optimized out?
+    ros-noetic-joint-state-publisher \
+    ros-noetic-robot-state-publisher \
+    ros-noetic-rviz \
+    ros-noetic-xacro \
+    gazebo11 \
+    ros-noetic-gazebo-ros \
+    ros-noetic-gazebo-ros-pkgs \
+    ros-noetic-gazebo-ros-control \
     # useful for git complete
     bash-completion \
     && rm -rf /var/lib/apt/lists/*
@@ -65,7 +74,7 @@ RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
     echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
     echo 'source "${WORKDIRECTORY}/src/dream_mobile_platform/dream_bashrc.sh"' >> ~/.bashrc
 # Using /bin/bash to keep the container alive
-# ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var, but not functions. 
+# ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var as indicated in CMD, but not functions. 
 # That's why we do NOT put feature flags in a dream_bashrc.sh
 ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
 CMD /bin/bash

@@ -7,6 +7,7 @@ sudo_ros_preserve_env rosrun dream_mobile_platform cmd_vel_to_motor_commands.py
 import rospy
 from geometry_msgs.msg import Twist
 from simple_robotics_python_utils.pubsub.shared_memory_pub_sub import SharedMemoryPub
+from simple_robotics_python_utils.common.io import feature_flag_read
 
 
 class CmdvelToMotorCommands:
@@ -26,6 +27,7 @@ class CmdvelToMotorCommands:
             data_type=float,
             arr_size=2,
             debug=False,
+            use_ros=feature_flag_read(name="USE_ROS_TOPICS"),
         )
 
     def cmd_vel_callback(self, msg):
