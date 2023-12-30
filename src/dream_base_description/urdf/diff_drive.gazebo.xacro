@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+<robot name="nuturtle_gazebo" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <!-- Notes: load urdf, then load diff params -->
+    <xacro:include filename="$(find nuturtle_description)/urdf/diff_drive.urdf.xacro" />
+    <xacro:property name="diff_params" value="${load_yaml('$(find nuturtle_description)/config/diff_params.yaml')}" />
+    <!--    specify link properties like this?-->
+
+
+    <!-- diffdrive source code: https://github.com/ros-simulation/gazebo_ros_pkgs/blob/noetic-devel/gazebo_plugins/src/gazebo_ros_diff_drive.cpp  -->
+    <gazebo>
+        <plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+        <legacyMode>false</legacyMode>
+        <alwaysOn>true</alwaysOn>
+        <updateRate>10</updateRate>
+        <leftJoint>left_wheel_hinge</leftJoint>
+        <rightJoint>right_wheel_hinge</rightJoint>
+        <wheelSeparation>0.4</wheelSeparation>
+        <wheelDiameter>0.2</wheelDiameter>
+        <torque>10</torque>
+        <commandTopic>cmd_vel</commandTopic>
+        <odometryTopic>odom</odometryTopic>
+        <odometryFrame>odom</odometryFrame>
+        <robotBaseFrame>robot_footprint</robotBaseFrame>
+        <publishWheelTF>false</publishWheelTF>
+        <publishWheelJointState>false</publishWheelJointState>
+        <rosDebugLevel>na</rosDebugLevel>
+        <wheelAcceleration>0</wheelAcceleration>
+        <wheelTorque>5</wheelTorque>
+        <odometrySource>world</odometrySource>
+        <publishTf>1</publishTf>
+        <publishOdomTF>true</publishOdomTF>
+        </plugin>
+    </gazebo>
+    <gazebo>
+        <!-- <plugin name="turtle_drive_plugin" filename="libnuturtle_gazebo_plugin.so">
+            <left_wheel_joint>left_wheel_axle</left_wheel_joint>
+            <right_wheel_joint>right_wheel_axle</right_wheel_joint>
+            <sensor_frequency> 60 </sensor_frequency>
+            <wheel_cmd_topic>wheel_cmd</wheel_cmd_topic>
+            <sensor_data_topic>sensor_data</sensor_data_topic>
+            <max_wheel_command>${diff_params['max_wheel_command']}</max_wheel_command>
+            <max_motor_rot_vel>${diff_params['max_motor_rot_vel']}</max_motor_rot_vel>
+            <encoder_ticks_per_rev>${diff_params['encoder_ticks_per_rev']}</encoder_ticks_per_rev>
+        </plugin> -->
+    </gazebo>
+
+    <gazebo reference="base_link">
+        <material>Gazebo/Purple</material>
+
+    </gazebo>
+
+    <gazebo reference="chassis">
+        <material>Gazebo/Purple</material>
+    </gazebo>
+
+    <gazebo reference="laser_scan">
+        <material>Gazebo/Yellow</material>
+    </gazebo>
+
+    <gazebo>
+        <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+            <alwaysOn>true</alwaysOn>
+            <bodyName>base_footprint</bodyName>
+            <topicName>imu_data</topicName>
+            <serviceName>imu_service</serviceName>
+            <gaussianNoise>0.0</gaussianNoise>
+            <updateRate>30.0</updateRate>
+        </plugin>
+    </gazebo>
+
+
+    <gazebo reference="right_wheel">
+        <material>Gazebo/Red</material>
+        <mu1>1000</mu1>
+        <mu2>1000</mu2>
+                <minDepth>0.001</minDepth>
+                <fdir1>1 0 0 </fdir1>
+        <maxVel>0.1</maxVel>
+        <kp>500000</kp>
+        <kd>10</kd>
+    </gazebo>
+
+    <gazebo reference="left_wheel">
+        <material>Gazebo/Red</material>
+        <mu1>1000</mu1>
+        <mu2>1000</mu2>
+            <minDepth>0.001</minDepth>
+            <fdir1>1 0 0 </fdir1>
+        <maxVel>0.1</maxVel>
+        <kp>500000</kp>
+        <kd>10</kd>
+    </gazebo>
+
+    <gazebo reference="ball_caster">
+        <material>Gazebo/Red</material>
+        <mu1>0.0001</mu1>
+        <mu2>0.0001</mu2>
+            <minDepth>0.001</minDepth>
+            <fdir1>1 0 0 </fdir1>
+            <maxVel>1.0</maxVel>
+        <kp>1000000</kp>
+        <kd>100</kd>
+    </gazebo>
+
+    <!-- in URDF, the link is scan -->
+    <gazebo reference="scan">
+        <material>Gazebo/FlatBlack</material>
+        <!-- Choosing non-GPU version of the laser scanner -->
+        <sensor type="ray" name="head_hokuyo_sensor">
+            <pose>0 0 0 0 0 0</pose>
+            <visualize>true</visualize>
+            <update_rate>5</update_rate>
+            <ray>
+                <scan>
+                    <horizontal>
+                        <samples>360</samples>
+                        <resolution>1</resolution>
+                        <min_angle>0.0</min_angle>
+                        <max_angle>6.28319</max_angle>
+                    </horizontal>
+                </scan>
+                <range>
+                    <min>0.150</min>
+                    <max>6.0</max>
+                    <resolution>0.005</resolution>
+                </range>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.03</stddev>
+                </noise>
+            </ray>
+            <!-- plugin that converts gazebo sensor to ros topics. -->
+            <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_laser.so">
+                <topicName>/dream/scan</topicName>
+                <frameName>scan</frameName>
+            </plugin>
+        </sensor>
+    </gazebo>
+
+
+</robot>

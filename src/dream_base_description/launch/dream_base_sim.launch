@@ -1,0 +1,45 @@
+<launch>
+
+    <!-- to launch: dream_base_description dream_base_sim.launch view_only:=true  -->
+    <arg name="view_only" default="false"/>
+
+    <!-- send fake joint values -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+        <param name="use_gui" value="False"/>
+    </node>
+
+    <!-- Combine joint values -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+    <!-- Show in Rviz   -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dream_base_description)/config/view_robot.rviz"/>
+    <!-- Note: cat ` is not suitable for roslaunch, as it simply concatenates urdfs -->
+    <!-- Note: in_order will process xacros the order they appeared, not the order they are defined -->
+
+    <group if="$(arg view_only)">
+        <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find dream_base_description)/urdf/diff_drive.urdf.xacro'"/>
+    </group>
+
+    <!-- launching gazebo -->
+    <group unless="$(arg view_only)">
+        <include file="$(find gazebo_ros)/launch/empty_world.launch">
+            <arg name="world_name" value="$(find dream_base_description)/worlds/uda_bot_house.world"/>
+            <!-- <arg name="world_name" value="$(find nuturtle_gazebo)/worlds/udacity_mtv.world"/> -->
+            <arg name="paused" value="true"/>
+            <arg name="use_sim_time" value="true"/>
+            <arg name="gui" value="true"/>
+            <arg name="recording" value="false"/>
+            <arg name="debug" value="false"/>
+        </include>
+
+        <arg name="x" default="-0.58"/>
+        <arg name="y" default="0.69"/>
+        <arg name="z" default="0.1"/>
+        <param name="robot_description" command="$(find xacro)/xacro $(find dream_base_description)/urdf/diff_drive.gazebo.xacro"/>
+
+        <node name="mybot_spawn" pkg="gazebo_ros" type="spawn_model" output="screen"
+            args="-urdf -param robot_description -model diff_drive2 -x $(arg x) -y $(arg y) -z $(arg z)"
+            />
+    </group>
+
+</launch>
