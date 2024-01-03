@@ -1,47 +1,17 @@
 <?xml version="1.0"?>
-<robot name="nuturtle_gazebo" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="dream_gazebo_diff_drive" xmlns:xacro="http://www.ros.org/wiki/xacro">
     <!-- Notes: load urdf, then load diff params -->
-    <xacro:include filename="$(find nuturtle_description)/urdf/diff_drive.urdf.xacro" />
-    <xacro:property name="diff_params" value="${load_yaml('$(find nuturtle_description)/config/diff_params.yaml')}" />
-    <!--    specify link properties like this?-->
+    <xacro:include filename="$(find dream_base_description)/urdf/diff_drive.urdf.xacro" />
+    <xacro:property name="diff_params" value="${load_yaml('$(find dream_base_description)/config/diff_params.yaml')}" />`
 
-
-    <!-- diffdrive source code: https://github.com/ros-simulation/gazebo_ros_pkgs/blob/noetic-devel/gazebo_plugins/src/gazebo_ros_diff_drive.cpp  -->
     <gazebo>
-        <plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
-        <legacyMode>false</legacyMode>
-        <alwaysOn>true</alwaysOn>
-        <updateRate>10</updateRate>
-        <leftJoint>left_wheel_hinge</leftJoint>
-        <rightJoint>right_wheel_hinge</rightJoint>
-        <wheelSeparation>0.4</wheelSeparation>
-        <wheelDiameter>0.2</wheelDiameter>
-        <torque>10</torque>
-        <commandTopic>cmd_vel</commandTopic>
-        <odometryTopic>odom</odometryTopic>
-        <odometryFrame>odom</odometryFrame>
-        <robotBaseFrame>robot_footprint</robotBaseFrame>
-        <publishWheelTF>false</publishWheelTF>
-        <publishWheelJointState>false</publishWheelJointState>
-        <rosDebugLevel>na</rosDebugLevel>
-        <wheelAcceleration>0</wheelAcceleration>
-        <wheelTorque>5</wheelTorque>
-        <odometrySource>world</odometrySource>
-        <publishTf>1</publishTf>
-        <publishOdomTF>true</publishOdomTF>
-        </plugin>
-    </gazebo>
-    <gazebo>
-        <!-- <plugin name="turtle_drive_plugin" filename="libnuturtle_gazebo_plugin.so">
+        <!-- Notes: use params loaded from yaml -->
+        <plugin name="dream_gazebo_diff_drive_plugin" filename="libdream_gazebo_diff_drive_plugin.so">
             <left_wheel_joint>left_wheel_axle</left_wheel_joint>
             <right_wheel_joint>right_wheel_axle</right_wheel_joint>
-            <sensor_frequency> 60 </sensor_frequency>
-            <wheel_cmd_topic>wheel_cmd</wheel_cmd_topic>
-            <sensor_data_topic>sensor_data</sensor_data_topic>
-            <max_wheel_command>${diff_params['max_wheel_command']}</max_wheel_command>
-            <max_motor_rot_vel>${diff_params['max_motor_rot_vel']}</max_motor_rot_vel>
-            <encoder_ticks_per_rev>${diff_params['encoder_ticks_per_rev']}</encoder_ticks_per_rev>
-        </plugin> -->
+            <wheel_radius>${diff_params['wheel_radius']}</wheel_radius>
+            <commanded_wheel_vel_topic>${diff_params['commanded_wheel_vel_topic']}</commanded_wheel_vel_topic>
+        </plugin>
     </gazebo>
 
     <gazebo reference="base_link">

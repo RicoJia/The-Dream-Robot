@@ -1,0 +1,39 @@
+# Note: if you want to add params to gazebo, 
+# please add to the gazebo.xacro file as well!
+
+
+wheel_width: 0.018
+wheel_radius: 0.0205
+wheel_base: 0.16
+chassis_length: 0.138
+chassis_thickness: 0.140
+chassis_gap_to_ground: 0.02
+wheel_mass: 0.3
+caster_mass: 0.1
+chassis_mass: 3.0
+wheel_axle_offset: 0.0
+laser_scanner_radius: 0.02
+laser_scanner_height: 0.02
+
+encoder_ticks_per_rev:  4096  #8192
+max_trans_vel: 0.22
+max_rot_vel: 2.84
+max_motor_rot_vel: 6.35492
+max_wheel_command: 265
+
+left_wheel_joint: 'left_wheel_axle'
+right_wheel_joint: 'right_wheel_axle'
+frequency: 120
+
+rotation_pub_frequency: 120
+translation_pub_frequency: 120
+frac_vel: 1.0
+
+
+waypoints_x: [0.0, 0.5, 1.0, 0.25, -0.5]
+waypoints_y: [0.0, 0.0, 0.5, 1.0, 0.5]
+k_rot:  0.3
+k_trans:  0.8
+
+# Params that other packages should note
+commanded_wheel_vel_topic: "/commanded_wheel_velocity"

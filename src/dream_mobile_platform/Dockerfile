@@ -1,5 +1,5 @@
 # Test Procedure:
-# docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg UNAME=$USER -t dream-mobile-platform .
+# 
 # sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged  dream-mobile-platform
 
 # Build Procedure:
@@ -27,18 +27,25 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
-    # TODO: these can be optimized out?
-    ros-noetic-joint-state-publisher \
-    ros-noetic-robot-state-publisher \
-    ros-noetic-rviz \
-    ros-noetic-xacro \
-    gazebo11 \
-    ros-noetic-gazebo-ros \
-    ros-noetic-gazebo-ros-pkgs \
-    ros-noetic-gazebo-ros-control \
     # useful for git complete
     bash-completion \
     && rm -rf /var/lib/apt/lists/*
+
+# TODO
+# ARG BUILD_SIM="false"
+# RUN if [ "$BUILD_SIM" = "true" ]; then \
+#         RUN apt-get update && apt-get install -y \
+#         # TODO: these can be optimized out?
+#         ros-noetic-joint-state-publisher \
+#         ros-noetic-robot-state-publisher \
+#         ros-noetic-rviz \
+#         ros-noetic-xacro \
+#         gazebo11 \
+#         ros-noetic-gazebo-ros \
+#         ros-noetic-gazebo-ros-pkgs \
+#         ros-noetic-gazebo-ros-control \
+#         ros-noetic-joint-state-publisher-gui \
+#         && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --upgrade opencv-python==4.6.0.66 \
  websockets==10.4 \

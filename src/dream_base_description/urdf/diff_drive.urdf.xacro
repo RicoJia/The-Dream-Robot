@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="diff_drive">
-    <xacro:property name="diff_params" value="${load_yaml('$(find nuturtle_description)/config/diff_params.yaml')}" />
+    <xacro:property name="diff_params" value="${load_yaml('$(find dream_base_description)/config/diff_params.yaml')}" />
 
     <xacro:property name="grey_mat">
      <material name="arm_grey_mat">
@@ -191,7 +191,7 @@
 
 
     <xacro:_joint name="left_wheel_axle"
-           type="fixed"
+           type="continuous"
            origin_xyz = "0.0 ${0.5*diff_params['wheel_base']} ${diff_params['wheel_axle_offset']}" origin_rpy="0 0 0"
            parent = "chassis"
            child = "left_wheel"
@@ -204,7 +204,7 @@
              radius="${diff_params['wheel_radius']}"/>
 
     <xacro:_joint name="right_wheel_axle"
-        type="fixed"
+        type="continuous"
         origin_xyz = "0.0 ${-0.5*diff_params['wheel_base']} ${diff_params['wheel_axle_offset']}" origin_rpy="0 0 0"
         parent = "chassis"
         child = "right_wheel"
@@ -241,10 +241,10 @@
           </collision>
 
           <inertial>
-              <mass value="${100 * diff_params['wheel_mass']}" />
-              <inertia ixx="${diff_params['chassis_mass']*((diff_params['wheel_base']-diff_params['wheel_width'])*(diff_params['wheel_base']-diff_params['wheel_width'])+diff_params['chassis_thickness']*diff_params['chassis_thickness'])/12}" ixy="0.0" ixz="0.0"
-                       iyy="${diff_params['chassis_mass']*(diff_params['chassis_length']*diff_params['chassis_length']+diff_params['chassis_thickness']*diff_params['chassis_thickness'])/12}" iyz="0.0"
-                       izz="${diff_params['chassis_mass']*((diff_params['wheel_base']-diff_params['wheel_width'])*(diff_params['wheel_base']-diff_params['wheel_width'])+diff_params['chassis_length']*diff_params['chassis_length'])/2}" />
+              <mass value="${100 * diff_params['caster_mass']}" />
+              <inertia ixx="${diff_params['caster_mass']*((diff_params['wheel_base']-diff_params['wheel_width'])*(diff_params['wheel_base']-diff_params['wheel_width'])+diff_params['chassis_thickness']*diff_params['chassis_thickness'])/12}" ixy="0.0" ixz="0.0"
+                       iyy="${diff_params['caster_mass']*(diff_params['chassis_length']*diff_params['chassis_length']+diff_params['chassis_thickness']*diff_params['chassis_thickness'])/12}" iyz="0.0"
+                       izz="${diff_params['caster_mass']*((diff_params['wheel_base']-diff_params['wheel_width'])*(diff_params['wheel_base']-diff_params['wheel_width'])+diff_params['chassis_length']*diff_params['chassis_length'])/2}" />
 
           </inertial>
 

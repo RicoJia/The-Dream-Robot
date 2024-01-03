@@ -1,8 +1,9 @@
 <launch>
+    <!-- To run simulation: SIM=true roslaunch dream_mobile_platform low_level_drivers.launch -->
   <!-- Not feature flagged because simulation is all launched here -->
   <arg name="sim" default="$(env SIM)"/>
   <rosparam file="$(find dream_mobile_platform)/config/dream_resource_registry.yaml" command="load"/>
-  <group ns="dream">
+  <group>
     <group unless="$(arg sim)">
         <node pkg="dream_mobile_platform" type="pwm_led_manager.py" name="pwm_led_manager" output="screen"/>
         <node pkg="dream_mobile_platform" type="motor_encoder.py" name="encoder_reader" output="screen"/>
@@ -11,6 +12,10 @@
     </group>
     <!-- Simulation -->
     <group if="$(arg sim)">
+        <include file="$(find dream_base_description)/launch/dream_base_sim.launch">
+            <arg name="view_only" value="false"/>
+        </include>
+        <node pkg="dream_mobile_platform" type="keyboard_teleop.py" name="keyboard_teleop" output="screen"/>
     </group>
     <node pkg="dream_mobile_platform" type="cmd_vel_to_motor_commands.py" name="cmd_vel_to_motor_commands" output="screen"/>
 </group>
