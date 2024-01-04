@@ -15,6 +15,10 @@ How this script works:
     - arrow: determine which vel is selected, and sign
         return_vel = np.zeros(2)
         up_arrow: vel[0] + return_vel[0]
+
+Caveat: 
+    - The process will read your keystrokes even when you're not on the main console.
+
 Inputs:
     - Keyboard events 
 Outputs:
