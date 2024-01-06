@@ -16,6 +16,14 @@ How this script works:
         return_vel = np.zeros(2)
         up_arrow: vel[0] + return_vel[0]
 
+Caveat: 
+    - The process will read your keystrokes even when you're not on the main console.
+
+Inputs:
+    - Keyboard events 
+Outputs:
+    - Publisher /ROS_TOPIC/CMD_VEL
+
 How to run this script, in a remote container
     1. on hostmachine, xhost local:root
     2. SSH -Y ...
@@ -119,7 +127,6 @@ def keyboard_event_analyzer(event, commanded_wheel_vel_pub, logger):
         msg.linear.x = return_vel[0]
         msg.angular.z = return_vel[1]
         commanded_wheel_vel_pub.publish(msg)
-         
 
 
 if __name__ == "__main__":
@@ -129,9 +136,7 @@ if __name__ == "__main__":
     debug = rospy.get_param("/PARAMS/DEBUG_MOTORS")
     logger = get_logger(name=node_name, print_level="DEBUG" if debug else "INFO")
     commanded_wheel_vel_pub = rospy.Publisher(
-        rospy.get_param("/ROS_TOPIC/CMD_VEL"),
-        Twist,
-        queue_size = 5
+        rospy.get_param("/ROS_TOPIC/CMD_VEL"), Twist, queue_size=5
     )
     with keyboard.Events() as events:
         for event in events:
