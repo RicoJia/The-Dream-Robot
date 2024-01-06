@@ -1,5 +1,5 @@
 # Test Procedure:
-# 
+# docker build -t dream-mobile-platform .
 # sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged  dream-mobile-platform
 
 # Build Procedure:
@@ -32,20 +32,19 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # TODO
-# ARG BUILD_SIM="false"
-# RUN if [ "$BUILD_SIM" = "true" ]; then \
-#         RUN apt-get update && apt-get install -y \
-#         # TODO: these can be optimized out?
-#         ros-noetic-joint-state-publisher \
-#         ros-noetic-robot-state-publisher \
-#         ros-noetic-rviz \
-#         ros-noetic-xacro \
-#         gazebo11 \
-#         ros-noetic-gazebo-ros \
-#         ros-noetic-gazebo-ros-pkgs \
-#         ros-noetic-gazebo-ros-control \
-#         ros-noetic-joint-state-publisher-gui \
-#         && rm -rf /var/lib/apt/lists/*
+ARG BUILD_SIM="false"
+RUN if [ "$BUILD_SIM" = "true" ]; then \
+    apt-get update && apt-get install -y \
+        ros-noetic-joint-state-publisher \
+        ros-noetic-robot-state-publisher \
+        ros-noetic-rviz \
+        ros-noetic-xacro \
+        gazebo11 \
+        ros-noetic-gazebo-ros \
+        ros-noetic-gazebo-ros-pkgs \
+        ros-noetic-gazebo-ros-control \
+        ros-noetic-joint-state-publisher-gui \
+        && rm -rf /var/lib/apt/lists/*; fi
 
 RUN pip3 install --upgrade opencv-python==4.6.0.66 \
  websockets==10.4 \
@@ -83,6 +82,6 @@ RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
 # Using /bin/bash to keep the container alive
 # ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var as indicated in CMD, but not functions. 
 # That's why we do NOT put feature flags in a dream_bashrc.sh
-ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
+# ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
 CMD /bin/bash
 

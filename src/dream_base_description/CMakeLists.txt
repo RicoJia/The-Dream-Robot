@@ -8,6 +8,7 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         gazebo_ros
+        tf2_ros
         # nuturtlebot
 )
 
