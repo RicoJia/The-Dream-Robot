@@ -1,5 +1,7 @@
 # Test Procedure:
 # docker build -t dream-mobile-platform .
+# If you'd like the simulation args:
+# docker build --build_args BUILD_SIM=true -t dream-mobile-platform .
 # sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged  dream-mobile-platform
 
 # Build Procedure:
