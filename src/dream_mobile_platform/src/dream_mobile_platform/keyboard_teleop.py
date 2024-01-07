@@ -3,6 +3,14 @@
 # https://github.com/ros-teleop/teleop_twist_keyboard/blob/master/teleop_twist_keyboard.py
 
 """
+How to use this script
+- <Esc> for exit
+- Arrow keys for moving. 
+- w,s for increasing and decreasing linear velocity
+- a,d for increasing and decreasing angular velocity
+- You can move the robot while changing velocities.
+- Once letting go of the arrow keys, the robot will stop.
+
 How this script works:
 1. Keyboard event comes in -> if it's char or special. add to CHARS, SPECIALS.
     - because there will be a release, we don't worry about SPECIALS overflowing.
@@ -10,8 +18,8 @@ How this script works:
 2. Then, for all chars and specials:
     - grab their correspnding action, from dict
     - char: determines the absolute value of a vel
-        q: vel = abs(min([0,0], vel-linear_increment))
-        z: vel = max(MAX_VEL, vel+linear_increment)
+        s: vel = abs(min([0,0], vel-linear_increment))
+        w: vel = max(MAX_VEL, vel+linear_increment)
     - arrow: determine which vel is selected, and sign
         return_vel = np.zeros(2)
         up_arrow: vel[0] + return_vel[0]
