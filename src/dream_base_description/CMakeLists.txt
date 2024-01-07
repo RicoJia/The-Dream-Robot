@@ -1,9 +1,14 @@
-cmake_minimum_required(VERSION 3.0.2)
+# CMAKE_EXPORT_COMPILE_COMMANDS requires 3.5+
+cmake_minimum_required(VERSION 3.5)
 project(dream_base_description)
 
 # By default, ROS noetic has C++14. But on a package level, you can do C++17
 # Compile as C++17, supported in ROS noetic and newer
 add_compile_options(-std=c++17)
+
+# equivalent to setting -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+# once built, in /build, will see compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(catkin REQUIRED COMPONENTS
         roscpp
