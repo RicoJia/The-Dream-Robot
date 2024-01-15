@@ -14,11 +14,15 @@ This allows us to first evaluate the robot trajectory evaluate $p(x_{1:t}|z_{1:t
 
 Pose trajectory is estimated using particle filter. Since we think $z_t$ is independent of $z_{1:t-1}$ and $u_{1:t-1}$, we have $p(z_t|z_{1:t-1}, u_{1:t}) = p(z_t)$, which is constant. We can denote it as $\eta$
 
-$$p(x_{1:t}|z_{1:t}, u_{1:t}) = p(x_{1:t}|z_t, z_{1:t-1}, u_{1:t})
+```math
+\begin{matrix}
+p(x_{1:t}|z_{1:t}, u_{1:t}) = p(x_{1:t}|z_t, z_{1:t-1}, u_{1:t}) \\
 \\
 = \frac{p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})}{p(z_t|z_{1:t-1}, u_{1:t})}
 \\
-= \eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})$$
+= \eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})
+\end{matrix}
+```
 
 Also, **we think $z_t$ is only dependent on $x_t$ and $x_t$ is only dependent on $x_{t-1}$ and $u_{1:t}$**. So, this can be further leaned down to:
 $$p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t}) = p(z_t|x_t)
