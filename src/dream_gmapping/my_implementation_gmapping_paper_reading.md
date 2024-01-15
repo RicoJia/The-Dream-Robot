@@ -25,13 +25,18 @@ p(x_{1:t}|z_{1:t}, u_{1:t}) = p(x_{1:t}|z_t, z_{1:t-1}, u_{1:t}) \\
 ```
 
 Also, **we think $z_t$ is only dependent on $x_t$ and $x_t$ is only dependent on $x_{t-1}$ and $u_{1:t}$**. So, this can be further leaned down to:
-$$p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t}) = p(z_t|x_t)
+
+```math
+\begin{matrix}
+p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t}) = p(z_t|x_t)
 \\
 p(x_{1:t}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t-1}, z_{1:t-1}, u_{1:t})p(x_{1:t-1}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})
 \\
 =>
 \\
-\eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t}) = \eta p(z_t|x_t)p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$$
+\eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t}) = \eta p(z_t|x_t)p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})
+\end{matrix}
+```
 
 Note: $p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$ is the posterior from the last update; $p(z_t|x_t)$ is the sensor probability model, and $p(x_t|x_{1:t}, u_t)$ is the robot's dynamic probablity model.
 
