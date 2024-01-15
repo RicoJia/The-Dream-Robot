@@ -14,24 +14,20 @@ This allows us to first evaluate the robot trajectory evaluate $p(x_{1:t}|z_{1:t
 
 Pose trajectory is estimated using particle filter. Since we think $z_t$ is independent of $z_{1:t-1}$ and $u_{1:t-1}$, we have $p(z_t|z_{1:t-1}, u_{1:t}) = p(z_t)$, which is constant. We can denote it as $\eta$
 
-$$
-p(x_{1:t}|z_{1:t}, u_{1:t}) = p(x_{1:t}|z_t, z_{1:t-1}, u_{1:t})
+$$p(x_{1:t}|z_{1:t}, u_{1:t}) = p(x_{1:t}|z_t, z_{1:t-1}, u_{1:t})
 \\
 = \frac{p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})}{p(z_t|z_{1:t-1}, u_{1:t})}
 \\
-= \eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})
-$$
+= \eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t})$$
 
 Also, **we think $z_t$ is only dependent on $x_t$ and $x_t$ is only dependent on $x_{t-1}$ and $u_{1:t}$**. So, this can be further leaned down to:
-$$
-p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t}) = p(z_t|x_t)
+$$p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t}) = p(z_t|x_t)
 \\
 p(x_{1:t}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t-1}, z_{1:t-1}, u_{1:t})p(x_{1:t-1}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})
 \\
 =>
 \\
-\eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t}) = \eta p(z_t|x_t)p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})
-$$
+\eta p(z_t|x_{1:t}, z_{1:t-1}, u_{1:t})p(x_{1:t}|z_{1:t-1}, u_{1:t}) = \eta p(z_t|x_t)p(x_t|x_{1:t}, u_t)p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$$
 
 Note: $p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$ is the posterior from the last update; $p(z_t|x_t)$ is the sensor probability model, and $p(x_t|x_{1:t}, u_t)$ is the robot's dynamic probablity model.
 
@@ -59,14 +55,10 @@ Now, we can estimate the current robot pose in SIR by:
 - So intuitively, if we draw a sample from $\pi$, and know (its apperance in target_distribution)/(its appearance in the current distribution), we can get an idea how likely it will be drawn in the target probablity. So we use this ratio as the "importance weight"
 - The importance weight is multiplicative, i.e.
 
-    $$
-    \pi(x_{1:t}|z_{1:t}, u_{1:t-1}) = \pi(x_{t}|x_{1:t-1}, z_{1:t}, u_{1:t-1})\pi(x_{1:t-1}| z_{1:t}, u_{1:t-1})
-    $$
+    $$\pi(x_{1:t}|z_{1:t}, u_{1:t-1}) = \pi(x_{t}|x_{1:t-1}, z_{1:t}, u_{1:t-1})\pi(x_{1:t-1}| z_{1:t}, u_{1:t-1}) $$
 
 - Then, the weight can be calculated recursively (for steps, please see the original paper [1])
-    $$
-    w_i \alpha \frac{p(z_t|m_{t-1}, x_t)p(x_t|x_{t-1}, u_{t-1})}{\pi(x_t|x_{1:t-1}, z_{1:t}, u_{1:t-1})}w_{t-1}
-    $$
+    $$w_i \alpha \frac{p(z_t|m_{t-1}, x_t)p(x_t|x_{t-1}, u_{t-1})}{\pi(x_t|x_{1:t-1}, z_{1:t}, u_{1:t-1})}w_{t-1}$$
 
 ### Proposal Distribution Design: the worse, the better
 
