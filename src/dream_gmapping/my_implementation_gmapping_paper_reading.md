@@ -58,9 +58,11 @@ Now, we can estimate the current robot pose in SIR by:
 - We have our target trajectory distribution $P(x|z,u)$. However, our particles from the last step is updated using the motion model and odometry. Therefore, they are drawn from a "proposed distribution", $\pi(x|z,u)$. Note, we have the z because we can technically still incorporate that into the estimation.
 - So intuitively, if we draw a sample from $\pi$, and know (its apperance in target_distribution)/(its appearance in the current distribution), we can get an idea how likely it will be drawn in the target probablity. So we use this ratio as the "importance weight"
 - The importance weight is multiplicative, i.e.
+
     $$
     \pi(x_{1:t}|z_{1:t}, u_{1:t-1}) = \pi(x_{t}|x_{1:t-1}, z_{1:t}, u_{1:t-1})\pi(x_{1:t-1}| z_{1:t}, u_{1:t-1})
     $$
+
 - Then, the weight can be calculated recursively (for steps, please see the original paper [1])
     $$
     w_i \alpha \frac{p(z_t|m_{t-1}, x_t)p(x_t|x_{t-1}, u_{t-1})}{\pi(x_t|x_{1:t-1}, z_{1:t}, u_{1:t-1})}w_{t-1}
