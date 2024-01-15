@@ -92,7 +92,10 @@ variance than the sensor model. E.g., a SICK lidar could be a lot more accurate 
 - $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-beam + Gaussian noise.
 - $p(x_t|x_{t-1}, u_{t-1})$ can be a odometry model + gaussian noise
 
-References
+## References
+
 [1] Grisetti, G., Stachniss, C., and Burgard, W. 2007. Improved Techniques for Grid Mapping with Rao-Blackwellized Particle Filters. In Proceedings of the 20th International Joint Conference on Artificial Intelligence (IJCAI'07), January 6–12, 2007, Hyderabad, India. 123–130. DOI:10.1234/567890.1234567.
+
 [2] Guyue's Blog Post on Gmapping (Mandarin)
+
 [3] Murphy, K. 2001. Rao-Blackwellized Particle Filtering for Dynamic Bayesian Networks. In Proceedings of the 17th Conference on Uncertainty in Artificial Intelligence (UAI'01), August 2–5, 2001, Seattle, WA, USA. 202–210. DOI:10.1234/567890.1234568.
