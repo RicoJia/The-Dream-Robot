@@ -26,10 +26,28 @@ Production Digram
 
 ```mermaid
 graph TB
+    subgraph "Onboard container"
+        D
+        B
+        A
+        C
+    end 
+
+    subgraph "Local Simulation"
+        GAZEBO
+        GAZEBO_DIFF_DRIVE
+        GAZEBO_LIDAR
+    end 
+
 A["MOTOR_CONTROLLER"] -->|/SHM_TOPIC/MOTOR_COMMANDS| B["MOTOR_DRIVER"] --> C["MOTORS"] --> D["MOTOR_ENCODER"] --> |/SHM_TOPIC/WHEEL_VELOCITIES|A
 
-F["Keyboard Gamepad"] -->|/ROS_TOPIC/CMD_VEL| G["cmd_vel_to_motor_commands"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| A
-H["LOCAL_PLANNER"] -->|/ROS_TOPIC/CMD_VEL| G["cmd_vel_to_motor_commands"]
+F["Keyboard Gamepad"] -->|/ROS_TOPIC/CMD_VEL|CONNECTOR_CMD_VEL_NODE{ } --> G["cmd_vel_to_motor_commands"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| CONNECTOR_WHEEL_VEL_NODE{ }
+
+CONNECTOR_WHEEL_VEL_NODE --> A
+CONNECTOR_WHEEL_VEL_NODE--> GAZEBO_DIFF_DRIVE --> GAZEBO
+GAZEBO_LIDAR --> GAZEBO
+
+H["LOCAL_PLANNER"] -->CONNECTOR_CMD_VEL_NODE
 ```
 
 Motor Tuning: please see [the motor tuning script](scripts/tune_motor_controller.py)

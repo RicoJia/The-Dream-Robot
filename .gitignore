@@ -4,3 +4,4 @@ logs/*
 .catkin_tools/*
 .catkin_workspace
 __pycache__/
+compile_commands.json
