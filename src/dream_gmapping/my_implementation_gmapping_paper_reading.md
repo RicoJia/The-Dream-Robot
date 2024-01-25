@@ -92,8 +92,96 @@ variance than the sensor model. E.g., a SICK lidar could be a lot more accurate 
 
 ### Sensor and Motion Model
 
-- $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-beam + Gaussian noise.
-- $p(x_t|x_{t-1}, u_{t-1})$ can be a odometry model + gaussian noise
+Sensor Models: - $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-beam + Gaussian noise.
+    - Vanilla: Update about the endpoint model
+        - the likelihood of observation Z, given map and x. There are a few possibilities:
+            - See Z as a result of Z_truth + Gaussian Sensor noise. Represented as $p_{hit}$
+            - See Z as a result of unexpected object in front ot the true obstacle. Note, the closer Z is to the laser scanner, the more likely it could be. This is somewhat "lame?"
+            - If z=max, it's likely a failure. it has a non-zero likelihood that you will see this when z=zmax, and x and map indicate that there shouldn't be a failure
+            - Random reading: it's likely that Z you see is a random value. We think that likelihood is 1/z_max
+        - Total probablity = [z_hit * p_hit + ... z_rand * p_rand]
+    - But, bmapping is using likelihood fields for range finders. Because of limitations of beam models: Cluttered environment, $p(z|x,m)$ is very unsmooth along x. Slight change in x could result in very different distributions for z.
+        1. A likelihood field is a map where each pixel's value is its distance to the nearest obstacle
+        2. Upon receiving laser observations, project them on to the map. Then, at each end point, find its distance to the nearest obstacle. That value obeys a Gaussian distribution
+        3. There's also a probability for random reading as well.
+        4. $p = z1 * N(z, sigma^2) + z_rand/z_max + p(zmax)$
+
+- Motion Model: TODO
+    - $p(x_t|x_{t-1}, u_{t-1})$ can be a odometry model + gaussian noise
+
+### Map Updates
+
+Map updates are done after updating particles. So, you can find the best particle for updating the map, so it's a "mapping with known poses" problem. Below we are assuming that each cell is independent of each other.
+
+#### Counting Method (Reflection Map, or Most Likely Map)
+
+Counting method is very interesting and relatively simple to implement. Idea is we think in a most likely map, an arbitrary cell $j$ has a probablity of "occupancy" or "beam reflection", $m_j$, and that probability maximizes the probability of the whole map. 
+
+<p align="center">
+    <img src="https://github.com/RicoJia/The-Dream-Robot/assets/39393023/b17a4d62-eab0-4b04-bd55-c97316bf17d1" alt="image alt text" height="100"/>
+</p>
+
+Therefore, we want for a given t:
+
+$$
+p(z_t | m, x_t) = \left\{
+    \begin{array}{ll}
+        m_y \prod_J (1-m_j) & \quad \text{if beam ends at cell y and not max range}\\
+        \prod_J (1-m_j) & \quad \text{if beam has length max range } 
+    \end{array}
+\right.
+$$
+
+So over time $T$, we want to find $m_j$ for each cell to get the maximum likelihood map: $p(m|z_{1:t}, x_{1:t})$, and that's equivalent to maximizing $p(z_{1:t} |m, x_{1:t})$
+
+<p align="center">
+    <img src="https://github.com/RicoJia/The-Dream-Robot/assets/39393023/dc6f0135-7a45-4183-ae9c-f295ae062ba4" alt="image alt text" height="100"/>
+</p>
+
+To evaluate that, we go through all $T$, all $N$ beams, and all cells $J$ along a beam, and take the ln() fo the products to transform them into sums
+
+$$
+\text{argmax}_{m_j} p(z_{1:t} | m, x_{1:t}) = \sum_{T} \sum_{N} \sum_{J} \alpha_{j} ln (m_j) + \beta_{j} ln(1-m_j)
+\\
+=> 
+m_j = \frac{\alpha_{j}}{\alpha_{j} + \beta_{j}}
+$$
+
+$\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the count of pass-throughs at cell $j$
+
+#### Occupancy Grid Mapping
+
+- Probability is occurence of an event/all outcomes, whereas odds is occurence of an event/occurence of other outcomes. The probability of rolling a dice to 1 is 1/6, but its odds is 1/5. **Odds is another way to achieve probability**
+
+- Log odds: odds is odd to work with: if `odds(win/lose) = 0.6`, then `odds(lose/win) = 1.66`. It's not intuitive to reason about it. However, applying log to it will make it `log(odds(win/lose)) = -log(odds(lose/win))`, which is more intuitive. So, log odds is $log(\frac{P}{1-P})$, aka "logit", or logistic unit function.
+
+- The goal is to evaluate the probability of map given observations, and poses. The map probability is calculated by multiplying all cell possibilities together. As an iterative algorithm, we want to be able to achieve an iterative structure: 
+    $$
+    p(m|z,x) = \prod_{i} p(m_i | z_{1:t}, x_{1:t}), \text{where a cell occupancy value } m_i \text{ could be 0, 1}
+    \\
+    ...
+    \\
+    = \prod_{i} \frac{p(m_{i} | z_t, x_t) p(z_t | x_t)}{p(m_i)} \frac{p(m_i | x_{1:t}, z_{1:t-1})}{p(z_{t} | x_{1:t}, z_{1:t-1})}
+    $$
+
+  - This is iterative with $p(m_i | x_{1:t}, z_{1:t-1})$. However, it could be further optimized: 
+    1. Probability multiplication is always more prone to underflow
+    2. The observation term can be elimiated, through the log odds trick as a common term.
+
+  Therefore, using the simple odds: $p(\neg{m_i} | z_{1:t}, x_{1:t}) = 1 - p(m_i | z_{1:t}, x_{1:t})$
+    $$
+    \frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
+        \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
+        \frac{p(m_i | z_{1:t-1}, x_{1:t})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t})}
+        \frac{p(m_i)}{p(\neg{m_i})}
+    $$
+
+Algorithm:
+    ```
+    For all cells in view,
+    l_{t,i} = l_{t-1, i} + inv_sensor_model(mi, xi, zt) - l0
+    end for
+    ```
 
 ## References
 
@@ -102,3 +190,5 @@ variance than the sensor model. E.g., a SICK lidar could be a lot more accurate 
 [2] Guyue's Blog Post on Gmapping (Mandarin)
 
 [3] Murphy, K. 2001. Rao-Blackwellized Particle Filtering for Dynamic Bayesian Networks. In Proceedings of the 17th Conference on Uncertainty in Artificial Intelligence (UAI'01), August 2–5, 2001, Seattle, WA, USA. 202–210. DOI:10.1234/567890.1234568.
+
+[4] https://medium.com/@matthewjacobholliday/an-introduction-to-log-odds-86d364fa6630
