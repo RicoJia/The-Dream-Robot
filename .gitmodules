@@ -1,3 +1,3 @@
-[submodule "src/SimpleRoboticsPythonUtils"]
-	path = src/SimpleRoboticsPythonUtils
-	url = git@github.com:RicoJia/SimpleRoboticsPythonUtils.git
+[submodule "src/SimpleRoboticsUtils"]
+	path = src/SimpleRoboticsUtils
+	url = git@github.com:RicoJia/SimpleRoboticsUtils.git
