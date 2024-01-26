@@ -172,9 +172,19 @@ $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the cou
     $$
     \frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
         \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
-        \frac{p(m_i | z_{1:t-1}, x_{1:t})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t})}
+        \frac{p(m_i | z_{1:t-1}, x_{1:t-1})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t-1})}
         \frac{p(m_i)}{p(\neg{m_i})}
     $$
+  In a more compact form, we note $odds(p) = \frac{p}{1-p}$ after taking the log of the above,
+    $$
+    ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) = 
+    \\
+    = ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))
+    + ln(odds(p(m_i | z_t, x_t)))
+    + ln(odds(p(m_i)))
+    $$
+
+  So $ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))$ is a recursive term that can be achieved from the last iteration; $ln(odds(p(m_i | z_t, x_t)))$ is the "inverse sensor model"; $ln(odds(p(m_i)))$ us a prior prpbablity of the map from $t=0$
 
 Algorithm:
     ```
