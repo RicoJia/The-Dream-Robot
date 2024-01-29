@@ -3,15 +3,15 @@ project(dream_gmapping)
 
 add_compile_options(-std=c++17)
 
-find_package(catkin REQUIRED)
-# find_package(simple_robotics_cpp_utils REQUIRED)
-
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES dream_gmapping
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+find_package(catkin REQUIRED COMPONENTS
+    # Needed for ros nodehandle, etc.
+    # Note: roscpp is the COMPONENT, and catkin is required.
+    roscpp
+    tf2_ros
+    geometry_msgs
 )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+catkin_package()
 
 ###########
 ## Build ##
@@ -19,11 +19,13 @@ catkin_package(
 
 add_executable(${PROJECT_NAME} src/dream_gmapping.cpp)
 include_directories(
-# include
+    include/
     ${catkin_INCLUDE_DIRS}
-    /usr/local/
+    # Technically don't need this, but want to make it clear that 
+    # we include simple_robotics_cpp_utils in /usr/local/include
+    ${CMAKE_SYSTEM_PREFIX_PATH}
 )
-# target_link_libraries(${PROJECT_NAME} PRIVATE simple_robotics_cpp_utils)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 
 
