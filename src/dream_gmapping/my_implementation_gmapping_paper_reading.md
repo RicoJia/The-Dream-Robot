@@ -162,7 +162,7 @@ m_j = \frac{\alpha_{j}}{\alpha_{j} + \beta_{j}}
 
 $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the count of pass-throughs at cell $j$
 
-#### Occupancy Grid Mapping
+#### Occupancy Grid Mapping (The Log Odds Trick, Classic But Not Used)
 
 - Probability is occurence of an event/all outcomes, whereas odds is occurence of an event/occurence of other outcomes. The probability of rolling a dice to 1 is 1/6, but its odds is 1/5. **Odds is another way to achieve probability**
 
