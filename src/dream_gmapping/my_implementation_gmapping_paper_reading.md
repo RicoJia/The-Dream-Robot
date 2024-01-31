@@ -4,9 +4,13 @@
 
 Particle filter is a Monte Carlo method that estimates the probability distribution of a random variable. If you are curious what that looks like, please check out my previous article.
 
- Here, the random variable is jointly **robot pose trajectory** and **map history** $(x_{1:t},m_{1:t})$. At any time instant, we know the previous pose $x_{1:t-1}$, control inputs $u_{1:t}$, and observations $z_{1:t}$. So, the problem is to estimate $p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t})$. Sampling this joint distribution is almost impractical! So, to simplify, We can apply Rao-Blackwellization to this context, which is basically "The estimator of the map $m_{1:t}$, given sufficient statistic in robot trajectory $x_{1:t}$, is no worse than the original estimator of the map and path jointly".
+ Here, the random variable is jointly **robot pose trajectory** and **map history** $(x_{1:t},m_{1:t})$. At any time instant, we know the previous pose $x_{1:t-1}$, control inputs $u_{1:t}$, and observations $z_{1:t}$. So, the problem is to estimate $p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t})$, which is a **HUGE State Space**, and sampling this joint distribution is almost impractical!
 
-Hence, we have the following factorization:
+### Rao-Blackwellization Decomposes This Problem
+ 
+So, to simplify, We can apply Rao-Blackwellization to this context. That will be "the estimator of the map $m_{1:t}$, given sufficient statistic in robot trajectory $x_{1:t}$, is no worse than the original estimator of the map and path jointly". 
+
+**Hence, we have the following factorization:**
 
 $$p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t}) = p(m_{1:t}|x_{1:t}, z_{1:t})p(x_{1:t}|z_{1:t}, u_{1:t})$$
 
@@ -40,7 +44,7 @@ p(x_{1:t}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t-1}, z_{1:t-1}, u_{1:t})p(x_{1:t-1}|
 
 Note: $p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$ is the posterior from the last update; $p(z_t|x_t)$ is the sensor probability model, and $p(x_t|x_{1:t}, u_t)$ is the robot's dynamic probablity model.
 
-## Sample-Importance Weight-Resampling Filter
+## Sample-Importance-Resampling Filter
 
 Now, we can estimate the current robot pose in SIR by: 
 
