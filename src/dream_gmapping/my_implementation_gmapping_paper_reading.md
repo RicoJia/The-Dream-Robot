@@ -78,7 +78,7 @@ y' = y_0 + \delta_{trans} sin(\theta_{0} + \delta_1) \\
 \theta = \theta_0 + \delta_1 + \delta_2
 $$
 
-This model is generic enough for all different kinematic models. However, for specific models, like the differential drive, this model's assumption of constant noise distribution for different $\delta_1, \delta_{trans}, \delta_2$. For different drive,  **instantaneous center of curvature** is a better suited model
+This model is generic enough for all different kinematic models. However, for specific models, like the differential drive, this model's assumption of constant noise distribution may not hold for different $\delta_1, \delta_{trans}, \delta_2$ values. For different drive,  **instantaneous center of curvature** is a better suited model
 
 #### Instantaneous center of curvature (ICC) [used in implementation]
 
