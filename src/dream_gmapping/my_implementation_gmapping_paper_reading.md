@@ -124,7 +124,7 @@ How to add noise? **We can add noise to $\omega$ and $v$.** The reason is we ass
 
 Map updates are done after updating particles. So, you can find the best particle for updating the map, so it's a "mapping with known poses" problem. Below we are assuming that each cell is independent of each other.
 
-#### Counting Method (Reflection Map, or Most Likely Map)
+#### The Counting Method (Reflection Map, or Most Likely Map, adopted by [ROS GMapping Package](https://github.com/RicoJia/The-Dream-Robot/blob/master/src/ros_nav_packages/openslam_gmapping/include/gmapping/scanmatcher/smmap.h#L30)) 
 
 Counting method is very interesting and relatively simple to implement. Idea is we think in a most likely map, an arbitrary cell $j$ has a probablity of "occupancy" or "beam reflection", $m_j$, and that probability maximizes the probability of the whole map. 
 
@@ -170,15 +170,15 @@ $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the cou
 
 - The goal is to evaluate the probability of map given observations, and poses. The map probability is calculated by multiplying all cell possibilities together. As an iterative algorithm, we want to be able to achieve an iterative structure: 
 
-    ```math
-    \begin{matrix}
-    p(m|z,x) = \prod_{i} p(m_i | z_{1:t}, x_{1:t}), \text{where a cell occupancy value } m_i \text{ could be 0, 1}
-    \\
-    ...
-    \\
-    = \prod_{i} \frac{p(m_{i} | z_t, x_t) p(z_t | x_t)}{p(m_i)} \frac{p(m_i | x_{1:t}, z_{1:t-1})}{p(z_{t} | x_{1:t}, z_{1:t-1})}
-    \end{matrix}
-    ```
+```math
+\begin{matrix}
+p(m|z,x) = \prod_{i} p(m_i | z_{1:t}, x_{1:t}), \text{where a cell occupancy value } m_i \text{ could be 0, 1}
+\\
+...
+\\
+= \prod_{i} \frac{p(m_{i} | z_t, x_t) p(z_t | x_t)}{p(m_i)} \frac{p(m_i | x_{1:t}, z_{1:t-1})}{p(z_{t} | x_{1:t}, z_{1:t-1})}
+\end{matrix}
+```
 
   - This is iterative with $p(m_i | x_{1:t}, z_{1:t-1})$. However, it could be further optimized: 
     1. Probability multiplication is always more prone to underflow
@@ -186,36 +186,36 @@ $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the cou
 
   Therefore, using the simple odds: $p(\neg{m_i} | z_{1:t}, x_{1:t}) = 1 - p(m_i | z_{1:t}, x_{1:t})$
 
-    ```math
-    \begin{matrix}
-    \frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
-        \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
-        \frac{p(m_i | z_{1:t-1}, x_{1:t-1})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t-1})}
-        \frac{p(m_i)}{p(\neg{m_i})}
-    \end{matrix}
-    ```
+```math
+\begin{matrix}
+\frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
+    \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
+    \frac{p(m_i | z_{1:t-1}, x_{1:t-1})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t-1})}
+    \frac{p(m_i)}{p(\neg{m_i})}
+\end{matrix}
+```
 
   In a more compact form, we note $odds(p) = \frac{p}{1-p}$ after taking the log of the above,
 
-    ```math
-    \begin{matrix}
-    ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) = 
-    \\
-    = ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))
-    + ln(odds(p(m_i | z_t, x_t)))
-    + ln(odds(p(m_i)))
-    \end{matrix}
-    ```
+```math
+\begin{matrix}
+ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) = 
+\\
+= ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))
++ ln(odds(p(m_i | z_t, x_t)))
++ ln(odds(p(m_i)))
+\end{matrix}
+```
 
 
   So $ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))$ is a recursive term that can be achieved from the last iteration; $ln(odds(p(m_i | z_t, x_t)))$ is the "inverse sensor model"; $ln(odds(p(m_i)))$ us a prior prpbablity of the map from $t=0$
 
 Algorithm:
-    ```
-    For all cells in view,
-    l_{t,i} = l_{t-1, i} + inv_sensor_model(mi, xi, zt) - l0
-    end for
-    ```
+```
+For all cells in view,
+l_{t,i} = l_{t-1, i} + inv_sensor_model(mi, xi, zt) - l0
+end for
+```
 
 
 ### Sensor Model
