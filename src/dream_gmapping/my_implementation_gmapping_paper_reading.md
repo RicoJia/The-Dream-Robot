@@ -72,11 +72,13 @@ In Probablistic Robotics [5], a proposed motion model is in time interval $\Delt
 
 Then, we add independent noises to each $\delta$, and update $x'$, $y'$ based on the previous position $x_0$, $y_0$, and $\theta_0$
 
-$$
+```math
+\begin{matrix}
 x' = x_0 + \delta_{trans} cos(\theta_{0} + \delta_1) \\
 y' = y_0 + \delta_{trans} sin(\theta_{0} + \delta_1) \\
 \theta = \theta_0 + \delta_1 + \delta_2
-$$
+\end{matrix}
+```
 
 This model is generic enough for all different kinematic models. However, for specific models, like the differential drive, this model's assumption of constant noise distribution may not hold for different $\delta_1, \delta_{trans}, \delta_2$ values. For different drive,  **instantaneous center of curvature** is a better suited model
 
@@ -89,20 +91,24 @@ We assume that in a short time interval $\Delta T$ from $t_0$ to  $t_1$, a diffe
 </p>
 
 The differential drive robot's angular and translational velocities are:
-$$
+
+```math
+\begin{matrix}
 v = \frac{v_{left} + v_{right}}{2} \\
 \dot\theta(t) = \omega = \frac{v_{left} - v_{right}}{l}
-$$
+\end{matrix}
+```
 
 Then assuming these velocities are constant along the arc, we can achieve new positions $x', y', \theta'$ at $t_1$
-
-$$
+```math
+\begin{matrix}
 \theta = \int_{t_0}^{t_1} \dot\theta(t) dt => \theta' = \theta_0 + \omega (t_1 - t_0)
 \\
 x = \int_{t_0}^{t_1} v cos(\theta(t))dt = \int_{t_0}^{t_1}\frac{vcos(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} cos(\theta)d\theta => x' = \frac{v}{\omega} [sin(\theta_0 + \omega (t_1 - t_0)) - sin(\theta_0)]
 \\
 y = \int_{t_0}^{t_1} v sin(\theta(t))dt = \int_{t_0}^{t_1}\frac{vsin(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} sin(\theta)d\theta = \frac{v}{\omega} [cos(\theta_0) - cos(\theta_0 + \omega (t_1 - t_0))]
-$$
+\end{matrix}
+```
 
 How to add noise? **We can add noise to $\omega$ and $v$.** The reason is we assume $v_{left}, v_{right}$ have independent Gaussian noises. Their linear combinations, $\omega$ and $v$ are also independent Gaussian distributions.
 
