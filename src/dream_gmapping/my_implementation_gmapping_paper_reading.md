@@ -150,12 +150,14 @@ So over time $T$, we want to find $m_j$ for each cell to get the maximum likelih
 
 To evaluate that, we go through all $T$, all $N$ beams, and all cells $J$ along a beam, and take the ln() fo the products to transform them into sums
 
-$$
+```math
+\begin{matrix}
 \text{argmax}_{m_j} p(z_{1:t} | m, x_{1:t}) = \sum_{T} \sum_{N} \sum_{J} \alpha_{j} ln (m_j) + \beta_{j} ln(1-m_j)
 \\
 => 
 m_j = \frac{\alpha_{j}}{\alpha_{j} + \beta_{j}}
-$$
+\end{matrix}
+```
 
 $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the count of pass-throughs at cell $j$
 
@@ -166,33 +168,44 @@ $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the cou
 - Log odds: odds is odd to work with: if `odds(win/lose) = 0.6`, then `odds(lose/win) = 1.66`. It's not intuitive to reason about it. However, applying log to it will make it `log(odds(win/lose)) = -log(odds(lose/win))`, which is more intuitive. So, log odds is $log(\frac{P}{1-P})$, aka "logit", or logistic unit function.
 
 - The goal is to evaluate the probability of map given observations, and poses. The map probability is calculated by multiplying all cell possibilities together. As an iterative algorithm, we want to be able to achieve an iterative structure: 
-    $$
+
+    ```math
+    \begin{matrix}
     p(m|z,x) = \prod_{i} p(m_i | z_{1:t}, x_{1:t}), \text{where a cell occupancy value } m_i \text{ could be 0, 1}
     \\
     ...
     \\
     = \prod_{i} \frac{p(m_{i} | z_t, x_t) p(z_t | x_t)}{p(m_i)} \frac{p(m_i | x_{1:t}, z_{1:t-1})}{p(z_{t} | x_{1:t}, z_{1:t-1})}
-    $$
+    \end{matrix}
+    ```
 
   - This is iterative with $p(m_i | x_{1:t}, z_{1:t-1})$. However, it could be further optimized: 
     1. Probability multiplication is always more prone to underflow
     2. The observation term can be elimiated, through the log odds trick as a common term.
 
   Therefore, using the simple odds: $p(\neg{m_i} | z_{1:t}, x_{1:t}) = 1 - p(m_i | z_{1:t}, x_{1:t})$
-    $$
+
+    ```math
+    \begin{matrix}
     \frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
         \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
         \frac{p(m_i | z_{1:t-1}, x_{1:t-1})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t-1})}
         \frac{p(m_i)}{p(\neg{m_i})}
-    $$
+    \end{matrix}
+    ```
+
   In a more compact form, we note $odds(p) = \frac{p}{1-p}$ after taking the log of the above,
-    $$
+
+    ```math
+    \begin{matrix}
     ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) = 
     \\
     = ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))
     + ln(odds(p(m_i | z_t, x_t)))
     + ln(odds(p(m_i)))
-    $$
+    \end{matrix}
+    ```
+
 
   So $ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))$ is a recursive term that can be achieved from the last iteration; $ln(odds(p(m_i | z_t, x_t)))$ is the "inverse sensor model"; $ln(odds(p(m_i)))$ us a prior prpbablity of the map from $t=0$
 
