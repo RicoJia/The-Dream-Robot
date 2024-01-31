@@ -16,6 +16,7 @@ $$p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t}) = p(m_{1:t}|x_{1:t}, z_{1:t})p(x_{1:t}|
 
 This allows us to first evaluate the robot trajectory evaluate $p(x_{1:t}|z_{1:t}, u_{1:t})$, then update $p(m_{1:t}|x_{1:t}, z_{1:t})$. And since we know the trajectory already, updating the map will be more accurate.
 
+### Estimating Trajectory Using Particle Filter
 Pose trajectory is estimated using particle filter. Since we think $z_t$ is independent of $z_{1:t-1}$ and $u_{1:t-1}$, we have $p(z_t|z_{1:t-1}, u_{1:t}) = p(z_t)$, which is constant. We can denote it as $\eta$
 
 ```math
@@ -44,7 +45,7 @@ p(x_{1:t}|z_{1:t-1}, u_{1:t}) = p(x_t|x_{1:t-1}, z_{1:t-1}, u_{1:t})p(x_{1:t-1}|
 
 Note: $p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$ is the posterior from the last update; $p(z_t|x_t)$ is the sensor probability model, and $p(x_t|x_{1:t}, u_t)$ is the robot's dynamic probablity model.
 
-## Sample-Importance-Resampling Filter
+## Sample-Importance-Resampling (SIR) Filter
 
 Now, we can estimate the current robot pose in SIR by: 
 
