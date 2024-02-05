@@ -42,8 +42,10 @@ namespace DreamGMapping
         nh_.getParam("map_frame", map_frame_);
         nh_.getParam("odom_frame", odom_frame_);
         nh_.getParam("map_update_interval", map_update_interval_);
-        ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
 
+        nh_.getParam("max_range", max_range_);
+
+        ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
         scan_sub_ptr_ = std::make_unique<message_filters::Subscriber<sensor_msgs::LaserScan>>(nh_, "scan", 1);
         // wait on the odom frame
         scan_filter_ptr_ = std::make_unique<tf2_ros::MessageFilter<sensor_msgs::LaserScan>>(*scan_sub_ptr_, tf_buffer_, odom_frame_, 1, nh_);
@@ -53,12 +55,28 @@ namespace DreamGMapping
     DreamGMapper::~DreamGMapper() = default;
 
     void DreamGMapper::laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan>& scan_msg){
+        // - wait for the first scan message, get tf;
         // TODO: test the filter, with a laserscan msg first, then with odom
         if (!received_first_laser_scan_){
             // Store the laser->base transform
             received_first_laser_scan_ = true;
             ROS_DEBUG_STREAM("Received first laser scan");
         }
+
+        // if scan is shorter than range_min, then set it to range_max
+        // Then make a copy of the scan. TODO: can we keep the scan msg?
+        // add_scan();
+
+        // process_scan()
+        // - icp: scan match, get initial guess
+        // for (particle& : particle_set){
+        //     update motion model(), get a new draw
+        // }
+        // - scan_match() // each particle's map with the new draw, get a score
+        // - for each particle, sample around the scan matched position K times?
+        // - Then calculate score for each particle
+        // - resample based on the scores.
+        // - map update
     }
 }
 int main(int argc, char**argv){

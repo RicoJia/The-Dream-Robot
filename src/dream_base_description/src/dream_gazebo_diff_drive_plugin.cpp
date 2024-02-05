@@ -3,8 +3,9 @@
  * https://github.com/ros-simulation/gazebo_ros_pkgs/blob/noetic-devel/gazebo_plugins/src/gazebo_ros_diff_drive.cpp
  * What this plugin does:
  *  - Set joint vel instataneously
+    - listens to commanded velocity: commanded_wheel_vel_topic
     - Publish perfect odom as /tf: base_link pose, vel;  for testing
-    - Publish wheel position perfectly in m/s:
+    - Publish wheel position perfectly in m/s
  * Gazebo Notes:
     - a plugin is a shared lib and inserted into simulation. Has direct access
  to all functionalities in Gazebo

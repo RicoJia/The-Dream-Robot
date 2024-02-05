@@ -14,13 +14,17 @@ namespace DreamGMapping{
         public:
             DreamGMapper(ros::NodeHandle& nh_);
             ~DreamGMapper();
-            // this signature is required for scan_filter_ptr_
+            // 
+            /** \brief Main function for evaluating particles and generating maps
+                this signature is required for scan_filter_ptr_ 
+            */
             void laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan>& scan_msg);
         protected:
             std::string base_frame_="base_link";
             std::string map_frame_="map"; 
             std::string odom_frame_="odom";
             double map_update_interval_=0.1; // 10 hz
+            double max_range_;
 
             bool received_first_laser_scan_ = false;
             tf2_ros::Buffer tf_buffer_ = tf2_ros::Buffer();

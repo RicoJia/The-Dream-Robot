@@ -1,7 +1,7 @@
 <launch>
     <!-- To run simulation: SIM=true roslaunch dream_mobile_platform low_level_drivers.launch -->
   <!-- Not feature flagged because simulation is all launched here -->
-  <arg name="sim" default="$(env SIM)"/>
+  <arg name="sim" value="$(env SIM)"/>
   <rosparam file="$(find dream_mobile_platform)/config/dream_resource_registry.yaml" command="load"/>
   <group>
     <group unless="$(arg sim)">
@@ -13,7 +13,7 @@
     <!-- Simulation -->
     <group if="$(arg sim)">
         <include file="$(find dream_base_description)/launch/dream_base_sim.launch">
-            <arg name="view_only" value="false"/>
+            <arg name="no_rviz" value="false"/>
         </include>
         <node pkg="dream_mobile_platform" type="keyboard_teleop.py" name="keyboard_teleop" output="screen"/>
     </group>

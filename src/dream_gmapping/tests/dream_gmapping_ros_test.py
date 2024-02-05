@@ -6,7 +6,7 @@ import time
 class TestDreamGMapping(unittest.TestCase):
     def test_message_filter(self):
         laser_pub = rospy.Publisher("/scan", LaserScan, queue_size=1)
-        # Here we should see dream_gmapping outputting "received first message"
+        # Here we should see dream_gmapping outputting "received first message" TODO
         time.sleep(1)
         
 

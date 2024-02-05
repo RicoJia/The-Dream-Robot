@@ -12,8 +12,6 @@
             <wheel_radius>${diff_params['wheel_radius']}</wheel_radius>
             <commanded_wheel_vel_topic>${diff_params['commanded_wheel_vel_topic']}</commanded_wheel_vel_topic>
             <wheel_joint_pos_topic>${diff_params['wheel_joint_pos_topic']}</wheel_joint_pos_topic>
-            <odom_topic>${diff_params['odom_topic']}</odom_topic>
-            <odom_groud_truth_topic>${diff_params['odom_groud_truth_topic']}</odom_groud_truth_topic>
             <map_frame_name>${diff_params['map_frame_name']}</map_frame_name>
             <base_link_frame_name>${diff_params['base_link_frame_name']}</base_link_frame_name>
             <encoder_pub_frequency>${diff_params['encoder_pub_frequency']}</encoder_pub_frequency>
