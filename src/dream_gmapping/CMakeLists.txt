@@ -28,4 +28,7 @@ include_directories(
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 
-
+# Unit Tests
+# Then one can run these tests using catkin_make run_tests or catkin_make run_tests --pkg <PKG_NAME>
+file(GLOB test_src_files "tests/unit/*.cpp")
+catkin_add_gtest(${PROJECT_NAME}_test ${test_src_files})

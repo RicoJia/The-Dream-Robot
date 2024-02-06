@@ -359,7 +359,7 @@ bool GridSlamProcessor::processScan(const RangeReading &reading,
     if (m_count > 0) {
       scanMatch(plainReading);
       updateTreeWeights(false);
-      resample(plainreading, adaptparticles, reading_copy);
+      resample(plainReading, adaptParticles, reading_copy);
 
     } else {
       m_infoStream << "Registering First Scan" << endl;
