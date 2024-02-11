@@ -4,11 +4,11 @@
 
 Particle filter is a Monte Carlo method that estimates the probability distribution of a random variable. If you are curious what that looks like, please check out my previous article.
 
- Here, the random variable is jointly **robot pose trajectory** and **map history** $(x_{1:t},m_{1:t})$. At any time instant, we know the previous pose $x_{1:t-1}$, control inputs $u_{1:t}$, and observations $z_{1:t}$. So, the problem is to estimate $p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t})$, which is a **HUGE State Space**, and sampling this joint distribution is almost impractical!
+Here, the random variable is jointly **robot pose trajectory** and **map history** $(x_{1:t},m_{1:t})$. At any time instant, we know the previous pose $x_{1:t-1}$, control inputs $u_{1:t}$, and observations $z_{1:t}$. So, the problem is to estimate $p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t})$, which is a **HUGE State Space**, and sampling this joint distribution is almost impractical!
 
 ### Rao-Blackwellization Decomposes This Problem
- 
-So, to simplify, We can apply Rao-Blackwellization to this context. That will be "the estimator of the map $m_{1:t}$, given sufficient statistic in robot trajectory $x_{1:t}$, is no worse than the original estimator of the map and path jointly". 
+
+So, to simplify, We can apply Rao-Blackwellization to this context. That will be "the estimator of the map $m_{1:t}$, given sufficient statistic in robot trajectory $x_{1:t}$, is no worse than the original estimator of the map and path jointly".
 
 **Hence, we have the following factorization:**
 
@@ -17,6 +17,7 @@ $$p(x_{1:t}, m_{1:t} | z_{1:t}, u_{1:t}) = p(m_{1:t}|x_{1:t}, z_{1:t})p(x_{1:t}|
 This allows us to first evaluate the robot trajectory evaluate $p(x_{1:t}|z_{1:t}, u_{1:t})$, then update $p(m_{1:t}|x_{1:t}, z_{1:t})$. And since we know the trajectory already, updating the map will be more accurate.
 
 ### Estimating Trajectory Using Particle Filter
+
 Pose trajectory is estimated using particle filter. Since we think $z_t$ is independent of $z_{1:t-1}$ and $u_{1:t-1}$, we have $p(z_t|z_{1:t-1}, u_{1:t}) = p(z_t)$, which is constant. We can denote it as $\eta$
 
 ```math
@@ -47,14 +48,14 @@ Note: $p(x_{1:t-1}|z_{1:t-1}, u_{1:t-1})$ is the posterior from the last update;
 
 ## Sample-Importance-Resampling (SIR) Filter
 
-Now, we can estimate the current robot pose in SIR by: 
+Now, we can estimate the current robot pose in SIR by:
 
 1. Using the last moment trajectory $P(x_{1:t-1}|u_{1:t-1}, z_{1:t-1})$. Each particle is a trajectory
 2. Then, predict each particle's current pose, with $u_{t}$ and current probability model.
 3. Given the new observation $z_{t}$, for a given particle, we can calculate its weight, and new possible mean position.
-    1. Near the predicted new pose, find the most probable new pose through **scan matching**
-    2. Near the scan-matched predicted new pose, sample K possible poses. **We ASSUME these new poses are normally distributed**
-    3. Calculate the mean of these k possible poses, and the covariance matrix of them across all 3 dimensions $(x,y,\theta)$. Each possible pose has a weight. The weight of the particle is the sum of all possible poses' weights.Then, update the particle with the newly calculated mean, and weight.
+   1. Near the predicted new pose, find the most probable new pose through **scan matching**
+   2. Near the scan-matched predicted new pose, sample K possible poses. **We ASSUME these new poses are normally distributed**
+   3. Calculate the mean of these k possible poses, and the covariance matrix of them across all 3 dimensions $(x,y,\theta)$. Each possible pose has a weight. The weight of the particle is the sum of all possible poses' weights.Then, update the particle with the newly calculated mean, and weight.
 4. If the particles are "too scattered", resample
 
 <p align="center">
@@ -85,11 +86,11 @@ y' = y_0 + \delta_{trans} sin(\theta_{0} + \delta_1) \\
 \end{matrix}
 ```
 
-This model is generic enough for all different kinematic models. However, for specific models, like the differential drive, this model's assumption of constant noise distribution may not hold for different $\delta_1, \delta_{trans}, \delta_2$ values. For different drive,  **instantaneous center of curvature** is a better suited model
+This model is generic enough for all different kinematic models. However, for specific models, like the differential drive, this model's assumption of constant noise distribution may not hold for different $\delta_1, \delta_{trans}, \delta_2$ values. For different drive, **instantaneous center of curvature** is a better suited model
 
 #### Instantaneous center of curvature (ICC) [used in implementation]
 
-We assume that in a short time interval $\Delta T$ from $t_0$ to  $t_1$, a differential drive robot goes around a circular path, as illustrated below (picture credit: [Thomas Hellström](https://www.diva-portal.org/smash/get/diva2:796235/FULLTEXT01.pdf))
+We assume that in a short time interval $\Delta T$ from $t_0$ to $t_1$, a differential drive robot goes around a circular path, as illustrated below (picture credit: [Thomas Hellström](https://www.diva-portal.org/smash/get/diva2:796235/FULLTEXT01.pdf))
 
 <p align="center">
     <img src="https://github.com/RicoJia/The-Dream-Robot/assets/39393023/908d9f23-593a-4f28-9970-a30767e88cce" alt="image alt text" height="200"/>
@@ -105,6 +106,7 @@ v = \frac{v_{left} + v_{right}}{2} \\
 ```
 
 Then assuming these velocities are constant along the arc, we can achieve new positions $x', y', \theta'$ at $t_1$
+
 ```math
 \begin{matrix}
 \theta = \int_{t_0}^{t_1} \dot\theta(t) dt => \theta' = \theta_0 + \omega (t_1 - t_0)
@@ -117,16 +119,39 @@ y = \int_{t_0}^{t_1} v sin(\theta(t))dt = \int_{t_0}^{t_1}\frac{vsin(\theta) \do
 
 How to add noise? **We can add noise to $\omega$ and $v$.** The reason is we assume $v_{left}, v_{right}$ have independent Gaussian noises. Their linear combinations, $\omega$ and $v$ are also independent Gaussian distributions.
 
-
 **Important implementation consideration**: our laser scan is 10hz, while odom is 30hz. We could technically be throwing away some odom data. However, for a vanilla implementation, we just use the latest available odom data when laser scan is received. **The odom path should be compared before proceeding to the rest of RBPF so we can check how well this method performs**
+
+### Sensor Model
+
+Sensor Model: $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-beam + Gaussian noise.
+
+- Vanilla: Update about the endpoint model
+  - the likelihood of observation Z, given map and x. There are a few possibilities:
+    - See Z as a result of Z*truth + Gaussian Sensor noise. Represented as $p*{hit}$
+    - See Z as a result of unexpected object in front ot the true obstacle. Note, the closer Z is to the laser scanner, the more likely it could be. This is somewhat "lame?"
+    - If z=max, it's likely a failure. it has a non-zero likelihood that you will see this when z=zmax, and x and map indicate that there shouldn't be a failure
+    - Random reading: it's likely that Z you see is a random value. We think that likelihood is 1/z_max
+  - Total probablity = [z_hit * p_hit + ... z_rand * p_rand]
+- However, in cluttered environment, the vanilla method makes $p(z|x,m)$ very unsmooth along x. Think about being in a cluttered room, In close proximity x, z could be very different. Therefore, a "likelihood field" model is adopted
+  1. A likelihood field is a map where each pixel's value is its distance to the nearest obstacle
+  2. Upon receiving laser observations, project them on to the map. Then, at each end point, **we find its distance to the nearest obstacle, instead of that to the next occupied cell along the laser beam**. Then we can estimate the probability of observing that distance value according to pre-measured beam-distance model.
+  3. The final probability is $p = z1 * N(z, sigma^2) + z_{rand}/z_{max} + p(z_{max})$
+     - $z_rand/z_max$ quantifies how likely this value is a random value generated by the range finder
+     - $p(z_{max})$ is the probability of observing an out of range value
+
+#### Sensor Model Implementation
+
+A full likelihood field is usually a "Euclidean Signed Distance Field" (ESDF). That could be well, very memory consuming. I've seen some implementations sticking to one single ESDF across all particles. When the environment is cluttered, that could yield observation scores far from its real value.
+
+One way is to use a `dictionary`, or `unordered_map` to store the counts of map pixel points. We store counts so cell occupancy is determined in a reflection map style (see the map updates section). Then, given a laser beam end point, we can search for its neighbors (say in a 3x3 kernel) in the dictionary. If you can find the nearest pixel in the dictionary, use that pixel for the observation score calculation. If not, we can assume a constant low score for that end point.
 
 ### Map Updates
 
 Map updates are done after updating particles. So, you can find the best particle for updating the map, so it's a "mapping with known poses" problem. Below we are assuming that each cell is independent of each other.
 
-#### The Counting Method (Reflection Map, or Most Likely Map, adopted by [ROS GMapping Package](https://github.com/RicoJia/The-Dream-Robot/blob/master/src/ros_nav_packages/openslam_gmapping/include/gmapping/scanmatcher/smmap.h#L30)) 
+#### The Counting Method (Reflection Map, or Most Likely Map, adopted by [ROS GMapping Package](https://github.com/RicoJia/The-Dream-Robot/blob/master/src/ros_nav_packages/openslam_gmapping/include/gmapping/scanmatcher/smmap.h#L30))
 
-Counting method is very interesting and relatively simple to implement. Idea is we think in a most likely map, an arbitrary cell $j$ has a probablity of "occupancy" or "beam reflection", $m_j$, and that probability maximizes the probability of the whole map. 
+Counting method is very interesting and relatively simple to implement. Idea is we think in a most likely map, an arbitrary cell $j$ has a probablity of "occupancy" or "beam reflection", $m_j$, and that probability maximizes the probability of the whole map.
 
 <p align="center">
     <img src="https://github.com/RicoJia/The-Dream-Robot/assets/39393023/b17a4d62-eab0-4b04-bd55-c97316bf17d1" alt="image alt text" height="100"/>
@@ -138,7 +163,7 @@ $$
 p(z_t | m, x_t) = \left\{
     \begin{array}{ll}
         m_y \prod_J (1-m_j) & \quad \text{if beam ends at cell y and not max range}\\
-        \prod_J (1-m_j) & \quad \text{if beam has length max range } 
+        \prod_J (1-m_j) & \quad \text{if beam has length max range }
     \end{array}
 \right.
 $$
@@ -155,7 +180,7 @@ To evaluate that, we go through all $T$, all $N$ beams, and all cells $J$ along 
 \begin{matrix}
 \text{argmax}_{m_j} p(z_{1:t} | m, x_{1:t}) = \sum_{T} \sum_{N} \sum_{J} \alpha_{j} ln (m_j) + \beta_{j} ln(1-m_j)
 \\
-=> 
+=>
 m_j = \frac{\alpha_{j}}{\alpha_{j} + \beta_{j}}
 \end{matrix}
 ```
@@ -168,7 +193,7 @@ $\alpha_{j}$ is the count of reflections at cell $j$, and $\beta_{j}$ is the cou
 
 - Log odds: odds is odd to work with: if `odds(win/lose) = 0.6`, then `odds(lose/win) = 1.66`. It's not intuitive to reason about it. However, applying log to it will make it `log(odds(win/lose)) = -log(odds(lose/win))`, which is more intuitive. So, log odds is $log(\frac{P}{1-P})$, aka "logit", or logistic unit function.
 
-- The goal is to evaluate the probability of map given observations, and poses. The map probability is calculated by multiplying all cell possibilities together. As an iterative algorithm, we want to be able to achieve an iterative structure: 
+- The goal is to evaluate the probability of map given observations, and poses. The map probability is calculated by multiplying all cell possibilities together. As an iterative algorithm, we want to be able to achieve an iterative structure:
 
 ```math
 \begin{matrix}
@@ -180,26 +205,26 @@ p(m|z,x) = \prod_{i} p(m_i | z_{1:t}, x_{1:t}), \text{where a cell occupancy val
 \end{matrix}
 ```
 
-  - This is iterative with $p(m_i | x_{1:t}, z_{1:t-1})$. However, it could be further optimized: 
-    1. Probability multiplication is always more prone to underflow
-    2. The observation term can be elimiated, through the log odds trick as a common term.
+- This is iterative with $p(m_i | x_{1:t}, z_{1:t-1})$. However, it could be further optimized:
+  1. Probability multiplication is always more prone to underflow
+  2. The observation term can be elimiated, through the log odds trick as a common term.
 
-  Therefore, using the simple odds: $p(\neg{m_i} | z_{1:t}, x_{1:t}) = 1 - p(m_i | z_{1:t}, x_{1:t})$
+Therefore, using the simple odds: $p(\neg{m_i} | z_{1:t}, x_{1:t}) = 1 - p(m_i | z_{1:t}, x_{1:t})$
 
 ```math
 \begin{matrix}
-\frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} = 
+\frac{p(m_i | z_{1:t}, x_{1:t})}{p(\neg{m_i} | z_{1:t}, x_{1:t})} =
     \frac{p(m_i | z_t, x_t)}{p(\neg{m_i} | z_t, x_t)}
     \frac{p(m_i | z_{1:t-1}, x_{1:t-1})}{p(\neg{m_i} | z_{1:t-1}, x_{1:t-1})}
     \frac{p(m_i)}{p(\neg{m_i})}
 \end{matrix}
 ```
 
-  In a more compact form, we note $odds(p) = \frac{p}{1-p}$ after taking the log of the above,
+In a more compact form, we note $odds(p) = \frac{p}{1-p}$ after taking the log of the above,
 
 ```math
 \begin{matrix}
-ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) = 
+ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) =
 \\
 = ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))
 + ln(odds(p(m_i | z_t, x_t)))
@@ -207,35 +232,17 @@ ln(odds(p(m_i^t | z_{1:t}, x_{1:t}))) =
 \end{matrix}
 ```
 
-
-  So $ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))$ is a recursive term that can be achieved from the last iteration; $ln(odds(p(m_i | z_t, x_t)))$ is the "inverse sensor model"; $ln(odds(p(m_i)))$ us a prior prpbablity of the map from $t=0$
+So $ln(odds(1-p(m_{t-1}^i|z_{t-1}, x_{t-1})))$ is a recursive term that can be achieved from the last iteration; $ln(odds(p(m_i | z_t, x_t)))$ is the "inverse sensor model"; $ln(odds(p(m_i)))$ us a prior prpbablity of the map from $t=0$
 
 Algorithm:
+
 ```
 For all cells in view,
 l_{t,i} = l_{t-1, i} + inv_sensor_model(mi, xi, zt) - l0
 end for
 ```
 
-
-### Sensor Model
-
-Sensor Model: $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-beam + Gaussian noise.
-
-- Vanilla: Update about the endpoint model
-    - the likelihood of observation Z, given map and x. There are a few possibilities:
-        - See Z as a result of Z_truth + Gaussian Sensor noise. Represented as $p_{hit}$
-        - See Z as a result of unexpected object in front ot the true obstacle. Note, the closer Z is to the laser scanner, the more likely it could be. This is somewhat "lame?"
-        - If z=max, it's likely a failure. it has a non-zero likelihood that you will see this when z=zmax, and x and map indicate that there shouldn't be a failure
-        - Random reading: it's likely that Z you see is a random value. We think that likelihood is 1/z_max
-    - Total probablity = [z_hit * p_hit + ... z_rand * p_rand]
-- But, bmapping is using likelihood fields for range finders. Because of limitations of beam models: Cluttered environment, $p(z|x,m)$ is very unsmooth along x. Slight change in x could result in very different distributions for z.
-    1. A likelihood field is a map where each pixel's value is its distance to the nearest obstacle
-    2. Upon receiving laser observations, project them on to the map. Then, at each end point, find its distance to the nearest obstacle. That value obeys a Gaussian distribution
-    3. There's also a probability for random reading as well.
-    4. $p = z1 * N(z, sigma^2) + z_rand/z_max + p(zmax)$
-
-## Important Notes
+## Improvements From GMapping
 
 ### Importance sampling
 
@@ -243,21 +250,20 @@ Sensor Model: $p(z_t|m_{t-1},x_t)$ can be given as distance of endpoint-of-the-b
 - So intuitively, if we draw a sample from $\pi$, and know (its apperance in target_distribution)/(its appearance in the current distribution), we can get an idea how likely it will be drawn in the target probablity. So we use this ratio as the "importance weight"
 - The importance weight is multiplicative, i.e.
 
-    $$\pi(x_{1:t}|z_{1:t}, u_{1:t-1}) = \pi(x_{t}|x_{1:t-1}, z_{1:t}, u_{1:t-1})\pi(x_{1:t-1}| z_{1:t}, u_{1:t-1}) $$
+  $$\pi(x_{1:t}|z_{1:t}, u_{1:t-1}) = \pi(x_{t}|x_{1:t-1}, z_{1:t}, u_{1:t-1})\pi(x_{1:t-1}| z_{1:t}, u_{1:t-1}) $$
 
 - Then, the weight can be calculated recursively (for steps, please see the original paper [1])
-    $$w_i \alpha \frac{p(z_t|m_{t-1}, x_t)p(x_t|x_{t-1}, u_{t-1})}{\pi(x_t|x_{1:t-1}, z_{1:t}, u_{1:t-1})}w_{t-1}$$
+  $$w_i \alpha \frac{p(z_t|m_{t-1}, x_t)p(x_t|x_{t-1}, u_{t-1})}{\pi(x_t|x_{1:t-1}, z_{1:t}, u_{1:t-1})}w_{t-1}$$
 
 ### Proposal Distribution Design: the worse, the better
 
-- Using odom and motion model as the proposal model could introduce more errors, if the odom model has much larger
-variance than the sensor model. E.g., a SICK lidar could be a lot more accurate than your odometer. So while in theory, if you have a large enough number of particles, you are able to find those that in this meaningful area, in reality, your particle set may be too small and you may not have the ones that fall into this region.
+Using odom and motion model as the proposal model could introduce more errors, **if the odom model has much larger variance than the sensor model**. E.g., a SICK lidar could be a lot more accurate than your odometer. So while in theory, if you have a large enough number of particles, you are able to find those that in this meaningful area, in reality, your particle set may be too small and you may not have the ones that fall into this region.
 
 <p align="center">
     <img src="https://github.com/RicoJia/notes/assets/39393023/aae1d339-0fd1-4415-a9dd-2f4922e0f0c6 " alt="image alt text" height="200"/>
 </p>
 
-- So, if we include the sensor input into the proposal distribution, like $p(x_t|m_t, x_{t-1}, z_t, u_{t-1})$,  following the original paper, we can transform the weight calculation into $w_t=w_{t-1}\int p(z_t|x')p(x'|x_{t-1}, u_{t-1})$. **If our particle set is not large, we sample more poses and integrate over them, which gives us a better estimate of $w_t$**. This is an improvement this paper introduces. 
+- So, if we include the sensor input into the proposal distribution, like $p(x_t|m_t, x_{t-1}, z_t, u_{t-1})$, following the original paper [1], we can transform the weight calculation into $w_t=w_{t-1}\int_{K} p(z_t|x')p(x'|x_{t-1}, u_{t-1})dx'$. **If our particle set is not large, that's ok, we sample K poses for each proposal then integrate over them, which gives us a better estimate of $w_t$**.
 
 - An example of the above is a long narrow corridor. After the robot gets to the end of the corridor, because of the additional sampling, particles have a higher chance of covergence (in b). But with the raw odom model, the particles may miss the exact point
 
