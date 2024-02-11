@@ -325,6 +325,7 @@ double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, 
 	return currentScore;
 }
 
+// RJ: This is the function being used to correct the robot after icp?
 double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
@@ -336,6 +337,7 @@ double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, con
 	int c_iterations=0;
     // Two loops for finding the best score 
 	do{
+        // when first entering, no refinement
 		if (bestScore>=currentScore){
 			refinement++;
 			adelta*=.5;

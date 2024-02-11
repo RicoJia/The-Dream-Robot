@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <sys/resource.h>
+#include <unordered_map>
 #include <vector>
 
 using namespace DreamGMapping;
@@ -13,11 +14,26 @@ using namespace DreamGMapping;
 uint TRAJ_POINT_NUM = 10 * 10 / (5 * 5) * 1e4;
 uint PARTICLE_NUM = 100;
 uint TRIAL_NUM = 5;
+unsigned int OBSTACLE_COUNT = 20 * 1000;
 
 long get_memory_usage() {
   struct rusage usage;
   getrusage(RUSAGE_SELF, &usage);
   return usage.ru_maxrss; // in kb
+}
+
+TEST(ParticleFilterTests, TestPixel) {
+  // turns out, this map could be resized after hitting a certain size
+  std::unordered_map<int, Rigid2D::Pixel2DWithCount> count_map;
+  long init_size = get_memory_usage();
+  for (unsigned int j = 0; j < OBSTACLE_COUNT; j++) {
+    count_map.emplace(std::piecewise_construct, std::make_tuple(j),
+                      std::make_tuple(j, j, 1));
+  }
+  auto after_size = get_memory_usage();
+  std::cout << "For obstacle count: " << OBSTACLE_COUNT
+            << ", the map size is: " << after_size << "kb" << std::endl;
+  // 10 ^ 7 => 63Mb
 }
 
 /**
@@ -28,12 +44,13 @@ long get_memory_usage() {
  * @return std::vector<std::unique_ptr<Particle>> : vector of the particles
  */
 void get_list_of_particle_best_case(
+    // This is could be resampling
     const std::unique_ptr<Particle> &p_ptr,
     std::vector<std::unique_ptr<Particle>> &p_list) {
   p_list.clear();
   p_list.reserve(PARTICLE_NUM);
   for (int i = 0; i < PARTICLE_NUM; i++) {
-    p_list.push_back(std::make_unique<Particle>(*p_ptr));
+    p_list.emplace_back(std::make_unique<Particle>(*p_ptr));
   }
   // c++ 11 already uses move semantics to return local objects
 }
@@ -46,13 +63,14 @@ TEST(ParticleFilterTests, TestParticleMemoryBestCase) {
   auto p_ptr = std::make_unique<Particle>();
   p_ptr->_weight = 1;
   for (int i = 0; i < TRAJ_POINT_NUM; i++) {
-    p_ptr->_pose_traj.push_back(std::make_shared<Rigid2D::Pose>(i, i, i));
+    p_ptr->pose_traj_.push_back(std::make_shared<Rigid2D::Pose>(i, i, i));
   }
   std::vector<std::unique_ptr<Particle>> p_list;
   for (int i = 0; i < TRIAL_NUM; i++) {
     get_list_of_particle_best_case(p_ptr, p_list);
     long mem_usage = get_memory_usage();
-    std::cout << "memory usage " << mem_usage << std::endl;
+    std::cout << " Best case iteration" << i << " memory usage: " << mem_usage
+              << std::endl;
     mem_usages.push_back(mem_usage);
   }
   for (int i = 1; i < TRIAL_NUM; i++) {
@@ -78,9 +96,13 @@ void get_list_of_particle_worst_case(
     p_list.push_back(std::make_unique<Particle>());
     p_list.back()->_weight = 1;
     for (int i = 0; i < TRAJ_POINT_NUM; i++) {
-      p_list.back()->_pose_traj.push_back(
+      p_list.back()->pose_traj_.push_back(
           std::make_shared<Rigid2D::Pose>(i, i, i));
     }
+    // for (unsigned int j = 0; j < OBSTACLE_COUNT ; j++) {
+    //     p_list.back()->laser_point_accumulation_map_.add_point(Rigid2D::Pixel2DWithCount(j,
+    //     j, 1));
+    // }
   }
   // c++ 11 already uses move semantics to return local objects
 }
@@ -92,10 +114,11 @@ TEST(ParticleFilterTests, TestParticleMemoryWorstCase) {
     // TODO: this is still failing
     get_list_of_particle_worst_case(p_list);
     long mem_usage = get_memory_usage();
-    std::cout << "memory usage " << mem_usage << std::endl;
+    std::cout << " Worst case iteration" << i << " memory usage: " << mem_usage
+              << std::endl;
     mem_usages.push_back(mem_usage);
   }
-  // `p_list.reserve()` also makes sure no extra memory is allocated while
+  // TODO: `p_list.reserve()` also makes sure no extra memory is allocated while
   // vector is appended to. So we can have a higher likelihood that the program
   // reuses the previosly reserved memory, which will cap the memory usage of
   // the program. However, since we are creating new Pose objects, cpp could

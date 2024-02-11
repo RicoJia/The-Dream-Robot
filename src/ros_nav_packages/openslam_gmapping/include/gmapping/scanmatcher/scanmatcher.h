@@ -155,10 +155,12 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (skip||*r>m_usableRange||*r==0.0) continue;
 		Point phit=lp;
+        //RJ: remember r is a pointer. phit is the laser endbeam point
 		phit.x+=*r*cos(lp.theta+*angle);
 		phit.y+=*r*sin(lp.theta+*angle);
 		IntPoint iphit=map.world2map(phit);
 		Point pfree=lp;
+        // compare if the point ahead of it is free.
 		pfree.x+=(*r-map.getDelta()*freeDelta)*cos(lp.theta+*angle);
 		pfree.y+=(*r-map.getDelta()*freeDelta)*sin(lp.theta+*angle);
  		pfree=pfree-phit;
@@ -167,6 +169,7 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 		Point bestMu(0.,0.);
 		for (int xx=-m_kernelSize; xx<=m_kernelSize; xx++)
 		for (int yy=-m_kernelSize; yy<=m_kernelSize; yy++){
+            // pr is the kernel point from phit; pf is the free point
 			IntPoint pr=iphit+IntPoint(xx,yy);
 			IntPoint pf=pr+ipfree;
 			//AccessibilityState s=map.storage().cellState(pr);
