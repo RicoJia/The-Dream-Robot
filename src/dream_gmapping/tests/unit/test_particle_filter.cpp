@@ -24,7 +24,7 @@ long get_memory_usage() {
 
 TEST(ParticleFilterTests, TestPixel) {
   // turns out, this map could be resized after hitting a certain size
-  std::unordered_map<int, Rigid2D::Pixel2DWithCount> count_map;
+  std::unordered_map<int, SimpleRoboticsCppUtils::Pixel2DWithCount> count_map;
   long init_size = get_memory_usage();
   for (unsigned int j = 0; j < OBSTACLE_COUNT; j++) {
     count_map.emplace(std::piecewise_construct, std::make_tuple(j),
@@ -63,7 +63,7 @@ TEST(ParticleFilterTests, TestParticleMemoryBestCase) {
   auto p_ptr = std::make_unique<Particle>();
   p_ptr->_weight = 1;
   for (int i = 0; i < TRAJ_POINT_NUM; i++) {
-    p_ptr->pose_traj_.push_back(std::make_shared<Rigid2D::Pose>(i, i, i));
+    p_ptr->pose_traj_.push_back(std::make_shared<SimpleRoboticsCppUtils::Pose>(i, i, i));
   }
   std::vector<std::unique_ptr<Particle>> p_list;
   for (int i = 0; i < TRIAL_NUM; i++) {
@@ -97,12 +97,9 @@ void get_list_of_particle_worst_case(
     p_list.back()->_weight = 1;
     for (int i = 0; i < TRAJ_POINT_NUM; i++) {
       p_list.back()->pose_traj_.push_back(
-          std::make_shared<Rigid2D::Pose>(i, i, i));
+          std::make_shared<SimpleRoboticsCppUtils::Pose>(i, i, i));
     }
-    // for (unsigned int j = 0; j < OBSTACLE_COUNT ; j++) {
-    //     p_list.back()->laser_point_accumulation_map_.add_point(Rigid2D::Pixel2DWithCount(j,
-    //     j, 1));
-    // }
+
   }
   // c++ 11 already uses move semantics to return local objects
 }

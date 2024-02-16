@@ -30,14 +30,16 @@
 */
 
 // Need message filter. Also, a 1s "expiration time"?
-#include "dream_gmapping/dream_gmapping.hpp"
+#include "dream_gmapping/dream_gmapper.hpp"
 #include "simple_robotics_cpp_utils/math_utils.hpp"
+#include "tf2/exceptions.h"
 #include <iostream>
 #include <memory>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
+
 namespace DreamGMapping {
-DreamGMapper::DreamGMapper(ros::NodeHandle &nh_) {
+DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   // Read parameters without default values here, so they must be specified in
   // launch file
   nh_.getParam("base_frame", base_frame_);
@@ -48,16 +50,11 @@ DreamGMapper::DreamGMapper(ros::NodeHandle &nh_) {
   nh_.getParam("max_range", max_range_);
   nh_.getParam("particle_num", particle_num_);
 
+  RosUtils::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
-  scan_sub_ptr_ =
-      std::make_unique<message_filters::Subscriber<sensor_msgs::LaserScan>>(
-          nh_, "scan", 1);
-  // wait on the odom frame
-  scan_filter_ptr_ =
-      std::make_unique<tf2_ros::MessageFilter<sensor_msgs::LaserScan>>(
-          *scan_sub_ptr_, tf_buffer_, odom_frame_, 1, nh_);
-  scan_filter_ptr_->registerCallback(
-      boost::bind(&DreamGMapper::laser_scan, this, _1));
+
+  // we are not using TimeSynchronizer because tf2 already provides buffering with timestamps
+  laser_sub_ = nh_.subscribe("scan", 1, &DreamGMapper::laser_scan, this);
 
   // std::shared_ptr<Rigid2D::>
   for (unsigned int i = 0; i < particle_num_; i++) {
@@ -73,10 +70,24 @@ DreamGMapper::~DreamGMapper() = default;
 void DreamGMapper::laser_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
   // - wait for the first scan message, get tf;
+  
+  geometry_msgs::TransformStamped odom_to_base;
+  try{
+    odom_to_base = tf_buffer_.lookupTransform(base_frame_, odom_frame_, ros::Time(0));
+    auto received_time =  (ros::Time(0)- odom_to_base.header.stamp).toSec();
+    if ( received_time > 1.0 ) {
+       ROS_WARN_STREAM("Odom to base transform was received "<< received_time); 
+    }
+  } catch (tf2::TransformException& e){
+    ROS_WARN("%s", e.what());
+    return;
+  }
+
   // TODO: test the filter, with a laserscan msg first, then with odom
   if (!received_first_laser_scan_) {
     // Store the laser->base transform
     received_first_laser_scan_ = true;
+    store_last_scan(scan_msg);
     ROS_DEBUG_STREAM("Received first laser scan");
   }
 
@@ -97,17 +108,17 @@ void DreamGMapper::laser_scan(
   // - Then calculate score for each particle
   // - resample based on the scores.
   // - map update
+    store_last_scan(scan_msg);
 }
+    void DreamGMapper::store_last_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg){
+        last_scan_.clear();
+        last_scan_.reserve(scan_msg->ranges.size());
+        // create a copy because scan_msg is managed by ROS and could be destroyed afterwards
+        last_scan_.assign(scan_msg->ranges.begin(), scan_msg->ranges.end());
+    }
+  void DreamGMapper::update_with_motion_model(){
+    for (Particle& p : particles_) {
+    //   p.motion_model();
+    }
+  }
 } // namespace DreamGMapping
-int main(int argc, char **argv) {
-  ros::init(argc, argv, "dream_gmapping");
-  ros::NodeHandle nh_("~");
-  DreamGMapping::DreamGMapper dg(nh_);
-
-  // init map
-  // get laser scanner -> base link tf from the scan topic
-
-  // For simplicity, we are using a single threaded model for subscribers
-  ros::spin();
-  return 0;
-}

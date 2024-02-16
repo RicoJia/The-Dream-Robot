@@ -1,3 +1,4 @@
+# run cmake-format -i CMakeLists.txt to reformat
 cmake_minimum_required(VERSION 3.0.2)
 project(dream_gmapping)
 
@@ -10,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf2_ros
     geometry_msgs
 )
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 catkin_package()
 
@@ -17,7 +19,8 @@ catkin_package()
 ## Build ##
 ###########
 
-add_executable(${PROJECT_NAME} src/dream_gmapping.cpp)
+file(GLOB src_files "src/*.cpp")
+add_executable(${PROJECT_NAME} ${src_files})
 include_directories(
     include/
     ${catkin_INCLUDE_DIRS}
@@ -25,10 +28,13 @@ include_directories(
     # we include simple_robotics_cpp_utils in /usr/local/include
     ${CMAKE_SYSTEM_PREFIX_PATH}
 )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
 
 
 # Unit Tests
 # Then one can run these tests using catkin_make run_tests or catkin_make run_tests --pkg <PKG_NAME>
-file(GLOB test_src_files "tests/unit/*.cpp")
-catkin_add_gtest(${PROJECT_NAME}_test ${test_src_files})
+# file(GLOB test_src_files "tests/unit/*.cpp")
+catkin_add_gtest(test_particle_filter tests/unit/test_particle_filter.cpp)
+catkin_add_gtest(test_dream_gmapper tests/unit/test_dream_gmapper.cpp src/dream_gmapper.cpp)
+target_link_libraries(test_particle_filter  ${catkin_LIBRARIES} Eigen3::Eigen)
+target_link_libraries(test_dream_gmapper ${catkin_LIBRARIES} Eigen3::Eigen)

@@ -10,10 +10,22 @@
 #include <tf2_ros/transform_listener.h>
 #include <vector>
 
+namespace RosUtils {
+    inline void print_all_nodehandle_params(ros::NodeHandle nh){
+        std::vector<std::string> params;
+        nh.getParamNames(params);
+        for (auto &param : params) {
+            std::string param_val;
+            nh.getParam(param, param_val);
+            ROS_INFO_STREAM("param: " << param << " val: " << param_val);
+        }
+    }
+}
+
 namespace DreamGMapping {
 class DreamGMapper {
 public:
-  DreamGMapper(ros::NodeHandle &nh_);
+  explicit DreamGMapper(ros::NodeHandle nh_);
   ~DreamGMapper();
   //
   /** \brief Main function for evaluating particles and generating maps
@@ -32,15 +44,20 @@ protected:
   int particle_num_ = 50;
 
   // inconfigurable parameters
+  // no need to store 
   bool received_first_laser_scan_ = false;
+  ros::Subscriber laser_sub_;
   tf2_ros::Buffer tf_buffer_ = tf2_ros::Buffer();
   tf2_ros::TransformListener tf_listener_ =
       tf2_ros::TransformListener(tf_buffer_);
-  std::unique_ptr<message_filters::Subscriber<sensor_msgs::LaserScan>>
-      scan_sub_ptr_;
-  std::unique_ptr<tf2_ros::MessageFilter<sensor_msgs::LaserScan>>
-      scan_filter_ptr_;
 
+  std::vector<float> last_scan_;
   std::vector<DreamGMapping::Particle> particles_;
+
+  // get the most recent odom -> draw a new noise -> go through all particles, 
+  void store_last_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+  void update_with_motion_model();
+  void scan_match_for_guess();
+
 };
 } // namespace DreamGMapping
