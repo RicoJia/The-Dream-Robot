@@ -23,7 +23,7 @@ struct Particle {
   double _weight;
   // TODO: pose or pixel2D?: drawing from motion model needs it, then  and
   // refining
-  std::vector<std::shared_ptr<SimpleRoboticsCppUtils::Pose>> pose_traj_;
+  std::vector<std::shared_ptr<SimpleRoboticsCppUtils::Pose2D>> pose_traj_;
   PointAccumulator laser_point_accumulation_map_;
   // all ctor and dtors are default
 };

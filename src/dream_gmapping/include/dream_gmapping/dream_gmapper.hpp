@@ -9,6 +9,7 @@
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
 #include <vector>
+#include <std_msgs/Float32MultiArray.h>
 
 namespace RosUtils {
     inline void print_all_nodehandle_params(ros::NodeHandle nh){
@@ -31,8 +32,8 @@ public:
   /** \brief Main function for evaluating particles and generating maps
       this signature is required for scan_filter_ptr_
   */
-  void
-  laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+  void laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+  void wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg);
 
 protected:
   // configurable parameters
@@ -42,6 +43,8 @@ protected:
   double map_update_interval_ = 0.1; // 10 hz
   double max_range_;
   int particle_num_ = 50;
+  Eigen::Matrix3d motion_covariances_;
+  Eigen::Vector3d motion_means_;
 
   // inconfigurable parameters
   // no need to store 
@@ -50,6 +53,10 @@ protected:
   tf2_ros::Buffer tf_buffer_ = tf2_ros::Buffer();
   tf2_ros::TransformListener tf_listener_ =
       tf2_ros::TransformListener(tf_buffer_);
+
+  ros::Subscriber wheel_odom_sub_;
+  std::pair<double, double> last_wheel_odom_;
+  std::pair<double, double> current_wheel_odom_;
 
   std::vector<float> last_scan_;
   std::vector<DreamGMapping::Particle> particles_;

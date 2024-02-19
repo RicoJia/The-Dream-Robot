@@ -4,6 +4,7 @@
     @date 2024-01-28
     SUBSCRIBES:
     - @subscribes: /scan: laser scan data
+    - @subscribes: /odom: wheel positions in m/s. [left, right]
     - @subscribes: /tf: listens for for odom -> baselink
     PUBLISHES:
     - @publishes: /map: map of the current environment
@@ -53,8 +54,13 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   RosUtils::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
 
-  // we are not using TimeSynchronizer because tf2 already provides buffering with timestamps
+  // we are not using TimeSynchronizer because tf2 already provides buffering
+  // with timestamps
   laser_sub_ = nh_.subscribe("scan", 1, &DreamGMapper::laser_scan, this);
+  wheel_odom_sub_ = nh_.subscribe("odom", 1, &DreamGMapper::wheel_odom, this);
+
+  motion_covariances_ << 0.2, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.1;
+  motion_means_ << 0.0, 0.0, 0.0;
 
   // std::shared_ptr<Rigid2D::>
   for (unsigned int i = 0; i < particle_num_; i++) {
@@ -70,15 +76,16 @@ DreamGMapper::~DreamGMapper() = default;
 void DreamGMapper::laser_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
   // - wait for the first scan message, get tf;
-  
+
   geometry_msgs::TransformStamped odom_to_base;
-  try{
-    odom_to_base = tf_buffer_.lookupTransform(base_frame_, odom_frame_, ros::Time(0));
-    auto received_time =  (ros::Time(0)- odom_to_base.header.stamp).toSec();
-    if ( received_time > 1.0 ) {
-       ROS_WARN_STREAM("Odom to base transform was received "<< received_time); 
+  try {
+    odom_to_base =
+        tf_buffer_.lookupTransform(base_frame_, odom_frame_, ros::Time(0));
+    auto received_time = (ros::Time(0) - odom_to_base.header.stamp).toSec();
+    if (received_time > 1.0) {
+      ROS_WARN_STREAM("Odom to base transform was received " << received_time);
     }
-  } catch (tf2::TransformException& e){
+  } catch (tf2::TransformException &e) {
     ROS_WARN("%s", e.what());
     return;
   }
@@ -89,6 +96,7 @@ void DreamGMapper::laser_scan(
     received_first_laser_scan_ = true;
     store_last_scan(scan_msg);
     ROS_DEBUG_STREAM("Received first laser scan");
+    return;
   }
 
   // if scan is shorter than range_min, then set it to range_max
@@ -108,17 +116,22 @@ void DreamGMapper::laser_scan(
   // - Then calculate score for each particle
   // - resample based on the scores.
   // - map update
-    store_last_scan(scan_msg);
+  store_last_scan(scan_msg);
 }
-    void DreamGMapper::store_last_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg){
-        last_scan_.clear();
-        last_scan_.reserve(scan_msg->ranges.size());
-        // create a copy because scan_msg is managed by ROS and could be destroyed afterwards
-        last_scan_.assign(scan_msg->ranges.begin(), scan_msg->ranges.end());
-    }
-  void DreamGMapper::update_with_motion_model(){
-    for (Particle& p : particles_) {
+void wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg){
+    // TODO
+}
+void DreamGMapper::store_last_scan(
+    const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
+  last_scan_.clear();
+  last_scan_.reserve(scan_msg->ranges.size());
+  // create a copy because scan_msg is managed by ROS and could be destroyed
+  // afterwards
+  last_scan_.assign(scan_msg->ranges.begin(), scan_msg->ranges.end());
+}
+void DreamGMapper::update_with_motion_model() {
+  for (Particle &p : particles_) {
     //   p.motion_model();
-    }
   }
+}
 } // namespace DreamGMapping

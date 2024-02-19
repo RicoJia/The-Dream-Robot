@@ -223,12 +223,13 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 		Point bestMu(0.,0.);
 		for (int xx=-m_kernelSize; xx<=m_kernelSize; xx++)
 		for (int yy=-m_kernelSize; yy<=m_kernelSize; yy++){
+            // pr, cell are the occupied cell, pf, fcell is the cell right infront of it.
 			IntPoint pr=iphit+IntPoint(xx,yy);
 			IntPoint pf=pr+ipfree;
-			//AccessibilityState s=map.storage().cellState(pr);
-			//if (s&Inside && s&Allocated){
 				const PointAccumulator& cell=map.cell(pr);
 				const PointAccumulator& fcell=map.cell(pf);
+                // if cell and pf are indeed fitting the first occupied cell
+                // mu is the min(dist(hit point - occupied cell)) among all kernel
 				if (((double)cell )>m_fullnessThreshold && ((double)fcell )<m_fullnessThreshold){
 					Point mu=phit-cell.mean();
 					if (!found){
@@ -237,9 +238,9 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 					}else
 						bestMu=(mu*mu)<(bestMu*bestMu)?mu:bestMu;
 				}
-			//}	
 		}
 		if (found){
+            // update the score of the pose across all beams, using a gaussian model.
 			s+=exp(-1./m_gaussianSigma*bestMu*bestMu);
 			c++;
 		}

@@ -63,7 +63,7 @@ TEST(ParticleFilterTests, TestParticleMemoryBestCase) {
   auto p_ptr = std::make_unique<Particle>();
   p_ptr->_weight = 1;
   for (int i = 0; i < TRAJ_POINT_NUM; i++) {
-    p_ptr->pose_traj_.push_back(std::make_shared<SimpleRoboticsCppUtils::Pose>(i, i, i));
+    p_ptr->pose_traj_.push_back(std::make_shared<SimpleRoboticsCppUtils::Pose2D>(i, i, i));
   }
   std::vector<std::unique_ptr<Particle>> p_list;
   for (int i = 0; i < TRIAL_NUM; i++) {
@@ -97,7 +97,7 @@ void get_list_of_particle_worst_case(
     p_list.back()->_weight = 1;
     for (int i = 0; i < TRAJ_POINT_NUM; i++) {
       p_list.back()->pose_traj_.push_back(
-          std::make_shared<SimpleRoboticsCppUtils::Pose>(i, i, i));
+          std::make_shared<SimpleRoboticsCppUtils::Pose2D>(i, i, i));
     }
 
   }

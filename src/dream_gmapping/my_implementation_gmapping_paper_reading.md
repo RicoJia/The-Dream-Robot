@@ -111,9 +111,9 @@ Then assuming these velocities are constant along the arc, we can achieve new po
 \begin{matrix}
 \theta = \int_{t_0}^{t_1} \dot\theta(t) dt => \theta' = \theta_0 + \omega (t_1 - t_0)
 \\
-x = \int_{t_0}^{t_1} v cos(\theta(t))dt = \int_{t_0}^{t_1}\frac{vcos(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} cos(\theta)d\theta => x' = \frac{v}{\omega} [sin(\theta_0 + \omega (t_1 - t_0)) - sin(\theta_0)]
+x = \int_{t_0}^{t_1} v cos(\theta(t))dt = \int_{t_0}^{t_1}\frac{vcos(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} cos(\theta)d\theta => x' = x_0 + \frac{v}{\omega} [sin(\theta_0 + \omega (t_1 - t_0)) - sin(\theta_0)]
 \\
-y = \int_{t_0}^{t_1} v sin(\theta(t))dt = \int_{t_0}^{t_1}\frac{vsin(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} sin(\theta)d\theta = \frac{v}{\omega} [cos(\theta_0) - cos(\theta_0 + \omega (t_1 - t_0))]
+y = \int_{t_0}^{t_1} v sin(\theta(t))dt = \int_{t_0}^{t_1}\frac{vsin(\theta) \dot\theta(t)dt}{\dot\theta(t)} = \frac{v}{\omega} \int_{t_0}^{t_1} sin(\theta)d\theta => y' = y_0 + \frac{v}{\omega} [cos(\theta_0) - cos(\theta_0 + \omega (t_1 - t_0))]
 \end{matrix}
 ```
 
