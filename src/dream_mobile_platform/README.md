@@ -32,6 +32,7 @@ Features
 ### Simulation
 
 - The keypad node is launched on the same console. However, one should note that the node will capture motions on other consoles as well.
+- To record rosbags: `rosbag record /dream/scan /tf /dream/wheel_pos`
 
 ## Motor Control
 
@@ -51,6 +52,12 @@ graph TB
         GAZEBO_DIFF_DRIVE
         GAZEBO_LIDAR
     end
+
+    subgraph "SLAM/localization"
+        GMAPPING/RMCL
+    end
+
+D["MOTOR_ENCODER"] -->|/ROS_TOPIC/WHEEL_POS| GMAPPING/RMCL
 
 A["MOTOR_CONTROLLER"] -->|/SHM_TOPIC/MOTOR_COMMANDS| B["MOTOR_DRIVER"] --> C["MOTORS"] --> D["MOTOR_ENCODER"] --> |/SHM_TOPIC/WHEEL_VELOCITIES|A
 

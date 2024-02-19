@@ -118,9 +118,12 @@ void DreamGMapper::laser_scan(
   // - map update
   store_last_scan(scan_msg);
 }
-void wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg){
+
+// [left, right], the wheel positions are [0, 2pi]
+void DreamGMapper::wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg){
     // TODO
 }
+
 void DreamGMapper::store_last_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
   last_scan_.clear();

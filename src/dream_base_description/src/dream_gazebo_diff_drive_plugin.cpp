@@ -198,8 +198,7 @@ public:
       ros::Time current_time = ros::Time::now();
       auto wheel_joint_msg = std_msgs::Float32MultiArray();
       for (unsigned int i = 0; i < wheel_joints_.size(); i++) {
-        wheel_joint_msg.data.push_back(wheel_joints_[i]->Position(0) *
-                                       WHEEL_RADIUS_);
+        wheel_joint_msg.data.push_back(wheel_joints_[i]->Position(0));
       }
       wheel_joint_states_pub_.publish(wheel_joint_msg);
       // publish odomground_truth
