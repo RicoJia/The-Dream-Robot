@@ -47,6 +47,7 @@
 #include <thread>
 
 #include "ros/callback_queue.h"
+#include "simple_robotics_cpp_utils/math_utils.hpp"
 
 namespace gazebo {
 enum {
@@ -198,7 +199,11 @@ public:
       ros::Time current_time = ros::Time::now();
       auto wheel_joint_msg = std_msgs::Float32MultiArray();
       for (unsigned int i = 0; i < wheel_joints_.size(); i++) {
-        wheel_joint_msg.data.push_back(wheel_joints_[i]->Position(0));
+        wheel_joint_msg.data.push_back(
+            SimpleRoboticsCppUtils::normalize_angle_2PI(
+                wheel_joints_[i]->Position(0)
+
+                    ));
       }
       wheel_joint_states_pub_.publish(wheel_joint_msg);
       // publish odomground_truth
