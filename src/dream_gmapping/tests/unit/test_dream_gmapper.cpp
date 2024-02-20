@@ -1,8 +1,62 @@
 #include "dream_gmapping/dream_gmapper.hpp"
 #include "ros/node_handle.h"
+#include "sensor_msgs/LaserScan.h"
+#include <cmath>
 #include <gtest/gtest.h>
 #include <unistd.h>
 
+// Creating a "wall" in front of the laser scan->frame on laser scan->with a
+// specified distance
+sensor_msgs::LaserScan::ConstPtr
+create_wall_laser_scan(const double &distance) {
+  boost::shared_ptr<sensor_msgs::LaserScan> scan(new sensor_msgs::LaserScan());
+  constexpr int NUM_POINTS = 360;
+  scan->ranges = std::vector<float>();
+  scan->header.frame_id = "laser";
+  scan->angle_min = 0;
+  scan->angle_max = 2 * M_PI;
+  // Positive is counter clockwise
+  scan->angle_increment = 2 * M_PI / NUM_POINTS;
+  scan->range_min = 0.0;
+  scan->range_max = 100;
+  double angle = scan->range_min;
+  for (unsigned int i = 0; i < NUM_POINTS; i++) {
+    if (std::abs(std::cos(angle)) < std::numeric_limits<float>::epsilon()) {
+      scan->ranges[i] = scan->range_max;
+    } else if (M_PI / 2.0 <= angle && angle <= M_PI * 3.0 / 2.0) {
+      scan->ranges.push_back(scan->range_max);
+    } else {
+      scan->ranges.push_back(distance / std::cos(angle));
+    }
+    angle += scan->angle_increment;
+  }
+  return sensor_msgs::LaserScan::ConstPtr(scan);
+}
+
+TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> prev_cloud(
+      new pcl::PointCloud<pcl::PointXYZ>());
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> next_cloud(
+      new pcl::PointCloud<pcl::PointXYZ>());
+  bool filled_success =
+      RosUtils::fill_point_cloud(create_wall_laser_scan(1), prev_cloud);
+
+  assert(filled_success && "Point Cloud Filling Failure");
+  filled_success =
+      RosUtils::fill_point_cloud(create_wall_laser_scan(8), next_cloud);
+  assert(filled_success && "Point Cloud Filling Failure");
+
+  for (auto range : prev_cloud->points) {
+    std::cout << range.x << " " << range.y << " " << range.z << std::endl;
+  }
+
+  Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
+  bool converge = RosUtils::icp_2d(
+      prev_cloud, next_cloud, std::pair<double, double>(0, 0), T_icp_output);
+  // TODO
+  std::cout << "converge: " << converge << std::endl;
+  std::cout << "T_icp_output: " << std::endl << T_icp_output << std::endl;
+}
 
 class DreamGMapperTests : public ::testing::Test {
 protected:
@@ -11,8 +65,10 @@ protected:
   void SetUp() override {
     ros::NodeHandle nh("~");
     dream_gmapper = new DreamGMapping::DreamGMapper(nh);
-    // here ros::~NodeHandle() would be called, but because the node is not started by the node handle,
-    // The node is still running, and all subscribers, and publishers are still preserved. The only thing changed is
+    // here ros::~NodeHandle() would be called, but because the node is not
+    started by the node handle,
+    // The node is still running, and all subscribers, and publishers are
+    still preserved. The only thing changed is
     // the node's reference count is 0
   }
   void TearDown() override { delete dream_gmapper; }
@@ -26,10 +82,10 @@ TEST_F(DreamGMapperTests, TestInitialization) {
 
   auto laser_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
   laser_pub.publish(sensor_msgs::LaserScan());
-  // sleep in 10ms, which is necessary before spinOnce so subscriber could get
+  // sleep in 10ms, which is necessary before spinOnce so subscriber could
   // the callback
   usleep(10000);
-  ros::spinOnce(); 
+  ros::spinOnce();
 }
 
 // Run all the tests that were declared with TEST()

@@ -50,6 +50,7 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
 
   nh_.getParam("max_range", max_range_);
   nh_.getParam("particle_num", particle_num_);
+  nh_.getParam("wheel_dist", wheel_dist_);
 
   RosUtils::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
@@ -90,7 +91,6 @@ void DreamGMapper::laser_scan(
     return;
   }
 
-  // TODO: test the filter, with a laserscan msg first, then with odom
   if (!received_first_laser_scan_) {
     // Store the laser->base transform
     received_first_laser_scan_ = true;
@@ -120,8 +120,10 @@ void DreamGMapper::laser_scan(
 }
 
 // [left, right], the wheel positions are [0, 2pi]
-void DreamGMapper::wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg){
-    // TODO
+void DreamGMapper::wheel_odom(
+    const std_msgs::Float32MultiArray::ConstPtr &odom_msg) {
+  // No mutex is needed as we are using ros::spin()
+  current_wheel_odom_ = {odom_msg->data[0], odom_msg->data[1]};
 }
 
 void DreamGMapper::store_last_scan(
@@ -132,6 +134,7 @@ void DreamGMapper::store_last_scan(
   // afterwards
   last_scan_.assign(scan_msg->ranges.begin(), scan_msg->ranges.end());
 }
+
 void DreamGMapper::update_with_motion_model() {
   for (Particle &p : particles_) {
     //   p.motion_model();
