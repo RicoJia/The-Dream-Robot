@@ -38,6 +38,7 @@
 #include <memory>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
+#include <simple_robotics_cpp_utils/rigid2d.hpp>
 
 namespace DreamGMapping {
 DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
@@ -51,6 +52,13 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   nh_.getParam("max_range", max_range_);
   nh_.getParam("particle_num", particle_num_);
   nh_.getParam("wheel_dist", wheel_dist_);
+  nh_.getParam("angular_active_threshold", angular_active_threshold_);
+  nh_.getParam("translation_active_threshold", translation_active_threshold_);
+
+  double d_v_std_dev, d_theta_std_dev;
+  nh_.getParam("d_v_std_dev", d_v_std_dev);
+  nh_.getParam("d_theta_std_dev", d_theta_std_dev);
+  motion_covariances_ << d_v_std_dev, 0.0, 0.0, d_theta_std_dev;
 
   RosUtils::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
@@ -99,15 +107,46 @@ void DreamGMapper::laser_scan(
     return;
   }
 
-  // if scan is shorter than range_min, then set it to range_max
-  // Then make a copy of the scan. TODO: can we keep the scan msg?
-  // add_scan();
+  auto screw_displacement = SimpleRoboticsCppUtils::get_2D_screw_displacement(
+      current_wheel_odom_, wheel_dist_);
+  auto [d_v, d_theta] = screw_displacement;
 
-  // add_scan() needs to push the 360 values into particles. Then when update
-  // maps, we go over the dictionary.
+  // If odom, angular distance is not enough, skip.
+  if (d_v < translation_active_threshold_ &&
+      d_theta < angular_active_threshold_)
+    return;
 
-  // process_scan()
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud(
+      new pcl::PointCloud<pcl::PointXYZ>());
+  bool filling_success = RosUtils::fill_point_cloud(scan_msg, cloud);
+  if (!filling_success) {
+    ROS_WARN("Failed to fill point cloud");
+    return;
+  };
+
   // - icp: scan match, get initial guess
+  Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
+  bool icp_converge =
+      RosUtils::icp_2d(last_cloud_, cloud, screw_displacement, T_icp_output);
+
+  for (auto &particle : particles_) {
+    double score;
+    SimpleRoboticsCppUtils::Pose2D new_pose_estimate{0, 0, 0};
+    if (icp_converge) {
+      // TODO
+      // new_pose *= icp
+      // search in neighbor
+    // refine_particle_pose_and_score
+    } else {
+      // draw from motion model
+      auto [s, m] =
+          SimpleRoboticsCppUtils::draw_from_icc(
+              *(particle.pose_traj_.back()), screw_displacement, motion_covariances_);
+      score = s;
+      new_pose_estimate = m;
+    }
+  }
+
   // for (particle& : particle_set){
   //     update motion model(), get a new draw
   // }
@@ -116,7 +155,7 @@ void DreamGMapper::laser_scan(
   // - Then calculate score for each particle
   // - resample based on the scores.
   // - map update
-  store_last_scan(scan_msg);
+  //   store_last_scan(cloud);
 }
 
 // [left, right], the wheel positions are [0, 2pi]
@@ -128,11 +167,11 @@ void DreamGMapper::wheel_odom(
 
 void DreamGMapper::store_last_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
-  last_scan_.clear();
-  last_scan_.reserve(scan_msg->ranges.size());
-  // create a copy because scan_msg is managed by ROS and could be destroyed
-  // afterwards
-  last_scan_.assign(scan_msg->ranges.begin(), scan_msg->ranges.end());
+  RosUtils::fill_point_cloud(scan_msg, last_cloud_);
+}
+void DreamGMapper::store_last_scan(
+    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> to_update) {
+  last_cloud_ = to_update;
 }
 
 void DreamGMapper::update_with_motion_model() {

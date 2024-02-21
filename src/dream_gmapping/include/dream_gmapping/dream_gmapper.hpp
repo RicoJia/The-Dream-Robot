@@ -1,6 +1,7 @@
 #pragma once
 #include "dream_gmapping/particle_filter.hpp"
 #include <boost/smart_ptr/shared_ptr.hpp>
+#include <cmath>
 #include <geometry_msgs/TransformStamped.h>
 #include <memory>
 #include <message_filters/subscriber.h>
@@ -52,8 +53,12 @@ inline bool fill_point_cloud(
           : scan_msg->angle_increment;
   double angle = 0.0;
   for (unsigned int i = 0; i < cloud->width; i++) {
-    cloud->points[i].x = scan_msg->ranges[i] * std::cos(angle);
-    cloud->points[i].y = scan_msg->ranges[i] * std::sin(angle);
+    // if scan is shorter than range_min, then set it to range_max
+    double range = (scan_msg->ranges[i] < scan_msg->range_min)
+                       ? scan_msg->range_max
+                       : scan_msg->ranges[i];
+    cloud->points[i].x = range * std::cos(angle);
+    cloud->points[i].y = range * std::sin(angle);
     angle += ANGLE_INCREMENT;
   }
   return true;
@@ -72,13 +77,15 @@ icp_2d(const boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> prev_scan,
   icp.setMaximumIterations(1500);     // A higher number of iterations
   icp.setTransformationEpsilon(1e-6); // A smaller convergence threshold
   icp.setRANSACOutlierRejectionThreshold(0.05);
-  // icp.setMaxCorrespondenceDistance(1.0); // Start with a larger value,
   // potentially decrease in a loop
   icp.setEuclideanFitnessEpsilon(
       1e-5); // A smaller distance threshold for stopping
   pcl::PointCloud<pcl::PointXYZ> output;
   // TODO: get Transform from screw_displacement
-  auto T_init_guess = Eigen::Matrix4f::Identity();
+  auto T_init_guess =
+      SimpleRoboticsCppUtils::screw_displacement_2d_to_body_frame_transform(
+          screw_displacement)
+          .cast<float>();
   // Documentation on T_init_guess being float typed sucked - I haven't seen it
   icp.align(output, T_init_guess);
 
@@ -114,8 +121,11 @@ protected:
   double max_range_;
   double wheel_dist_;
   int particle_num_ = 50;
-  Eigen::Matrix3d motion_covariances_;
-  Eigen::Vector3d motion_means_;
+  double angular_active_threshold_ = M_PI / 6.0;
+  double translation_active_threshold_ = 0.2;
+  Eigen::Matrix2d motion_covariances_{Eigen::Matrix2d::Identity()};
+  // No need to be user-initialized
+  Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
 
   // inconfigurable parameters
   // no need to store
@@ -129,12 +139,15 @@ protected:
   std::pair<double, double> last_wheel_odom_{0.0, 0.0};
   std::pair<double, double> current_wheel_odom_{0.0, 0.0};
 
-  std::vector<float> last_scan_;
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> last_cloud_{
+      new pcl::PointCloud<pcl::PointXYZ>()};
   std::vector<DreamGMapping::Particle> particles_;
 
   // get the most recent odom -> draw a new noise -> go through all particles,
   void store_last_scan(
       const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+  void
+  store_last_scan(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> to_update);
   void update_with_motion_model();
   void scan_match_for_guess();
 };

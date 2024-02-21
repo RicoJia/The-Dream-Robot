@@ -3,7 +3,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
-#include <sys/resource.h>
 #include <unordered_map>
 #include <vector>
 
@@ -15,12 +14,6 @@ uint TRAJ_POINT_NUM = 10 * 10 / (5 * 5) * 1e4;
 uint PARTICLE_NUM = 100;
 uint TRIAL_NUM = 5;
 unsigned int OBSTACLE_COUNT = 20 * 1000;
-
-long get_memory_usage() {
-  struct rusage usage;
-  getrusage(RUSAGE_SELF, &usage);
-  return usage.ru_maxrss; // in kb
-}
 
 TEST(ParticleFilterTests, TestPixel) {
   // turns out, this map could be resized after hitting a certain size
@@ -63,7 +56,8 @@ TEST(ParticleFilterTests, TestParticleMemoryBestCase) {
   auto p_ptr = std::make_unique<Particle>();
   p_ptr->_weight = 1;
   for (int i = 0; i < TRAJ_POINT_NUM; i++) {
-    p_ptr->pose_traj_.push_back(std::make_shared<SimpleRoboticsCppUtils::Pose2D>(i, i, i));
+    p_ptr->pose_traj_.push_back(
+        std::make_shared<SimpleRoboticsCppUtils::Pose2D>(i, i, i));
   }
   std::vector<std::unique_ptr<Particle>> p_list;
   for (int i = 0; i < TRIAL_NUM; i++) {
@@ -99,7 +93,6 @@ void get_list_of_particle_worst_case(
       p_list.back()->pose_traj_.push_back(
           std::make_shared<SimpleRoboticsCppUtils::Pose2D>(i, i, i));
     }
-
   }
   // c++ 11 already uses move semantics to return local objects
 }
