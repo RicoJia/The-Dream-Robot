@@ -11,7 +11,8 @@ private:
 
 public:
   void add_point(SimpleRoboticsCppUtils::Pixel2DWithCount &&p) {
-    count_map_.emplace(std::hash<SimpleRoboticsCppUtils::Pixel2DWithCount>()(p), std::move(p));
+    count_map_.emplace(std::hash<SimpleRoboticsCppUtils::Pixel2DWithCount>()(p),
+                       std::move(p));
   }
 };
 
@@ -20,7 +21,7 @@ public:
 // T_trans to t_point -> adjust particle pose T_pose -> get T_pose_in_pixel ->
 // add tp pointaccumulator laser points transform + T_pose_in_pixel
 struct Particle {
-  double _weight;
+  double weight_;
   // TODO: pose or pixel2D?: drawing from motion model needs it, then  and
   // refining
   std::vector<std::shared_ptr<SimpleRoboticsCppUtils::Pose2D>> pose_traj_;

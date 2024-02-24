@@ -4,12 +4,14 @@
 #include "simple_robotics_cpp_utils/performance_utils.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
+#include <simple_robotics_cpp_utils/rigid2d.hpp>
 #include <unistd.h>
 
 constexpr double WHEEL_DIST = 1;
 
-// Creating a "wall" in front of the laser scan->frame on laser scan->with a
-// specified distance
+// Creating a "wall" along the y axis at x=distance
+// The laser scan->frame on laser scan->with a. specified distance
+// Note: the other half of the scan is max_distance
 sensor_msgs::LaserScan::ConstPtr
 create_wall_laser_scan(const double &distance) {
   boost::shared_ptr<sensor_msgs::LaserScan> scan(new sensor_msgs::LaserScan());
@@ -52,23 +54,35 @@ TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
           RosUtils::fill_point_cloud(create_wall_laser_scan(8), next_cloud);
       assert(filled_success && "Point Cloud Filling Failure");
 
-      for (auto range : prev_cloud->points) {
-        std::cout << range.x << " " << range.y << " " << range.z << std::endl;
-      }
-
       Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
       bool converge =
           RosUtils::icp_2d(prev_cloud, next_cloud,
                            std::pair<double, double>(0, 0), T_icp_output);
-      // TODO
-      std::cout << "converge: " << converge << std::endl;
-      std::cout << "T_icp_output: " << std::endl << T_icp_output << std::endl;
       prev_cloud = next_cloud;
     }
   }
   long after_memory = get_memory_usage();
   std::cout << "memory usage: " << (after_memory - init_memory) << ""
             << std::endl;
+}
+
+TEST(DreamGMapperUtilsTests, PointCloudInWorldFrameTest) {
+  SimpleRoboticsCppUtils::Pose2D pose{1, 1, M_PI / 2};
+  auto scan_msg = create_wall_laser_scan(1);
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud(
+      new pcl::PointCloud<pcl::PointXYZ>());
+  bool filled_success = RosUtils::fill_point_cloud(scan_msg, cloud);
+  assert(filled_success && "point cloud filling failure");
+  auto rotated_cloud = RosUtils::get_point_cloud_in_world_frame(pose, cloud);
+  // This is tricky - origin is (-1, 1) in the body frame of the body frame
+  SimpleRoboticsCppUtils::Pose2D pose_back_to_origin{-1, 1, -M_PI / 2};
+  auto new_rotated_cloud = RosUtils::get_point_cloud_in_world_frame(
+      pose_back_to_origin, rotated_cloud);
+  EXPECT_EQ(cloud->width, new_rotated_cloud->width);
+  for (unsigned int i = 0; i < new_rotated_cloud->width; i++) {
+    EXPECT_NEAR(cloud->points[i].x, new_rotated_cloud->points[i].x, 1e-4);
+    EXPECT_NEAR(cloud->points[i].y, new_rotated_cloud->points[i].y, 1e-4);
+  }
 }
 
 class DreamGMapperTests : public ::testing::Test {

@@ -9,6 +9,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 #include <simple_robotics_cpp_utils/math_utils.hpp>
+#include <simple_robotics_cpp_utils/rigid2d.hpp>
 #include <std_msgs/Float32MultiArray.h>
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
@@ -18,6 +19,8 @@
 // contains pcl::PointXYZ
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+
+using PclCloudPtr = boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>;
 
 namespace RosUtils {
 inline void print_all_nodehandle_params(ros::NodeHandle nh) {
@@ -32,11 +35,10 @@ inline void print_all_nodehandle_params(ros::NodeHandle nh) {
 // Returning if filling is successful
 inline bool fill_point_cloud(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg,
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud) {
+    PclCloudPtr cloud) {
   if (!cloud) {
-    // create boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud(
-        new pcl::PointCloud<pcl::PointXYZ>);
+    // create PclCloudPtr
+    PclCloudPtr cloud(new pcl::PointCloud<pcl::PointXYZ>);
   }
   // no NaN and INF
   cloud->is_dense = true;
@@ -65,11 +67,9 @@ inline bool fill_point_cloud(
 }
 
 // screw_displacement is [d_v, d_w]
-inline bool
-icp_2d(const boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> prev_scan,
-       const boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> curr_scan,
-       const std::pair<double, double> &screw_displacement,
-       Eigen::Matrix4d &T_icp_output) {
+inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
+                   const std::pair<double, double> &screw_displacement,
+                   Eigen::Matrix4d &T_icp_output) {
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   // pcl will try to align source to target. That's counter to our motion
   icp.setInputCloud(curr_scan);
@@ -97,6 +97,32 @@ icp_2d(const boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> prev_scan,
     return false;
   }
 }
+
+inline PclCloudPtr
+get_point_cloud_in_world_frame(const SimpleRoboticsCppUtils::Pose2D &pose,
+                               const PclCloudPtr cloud_in_body_frame) {
+  auto pose_eigen4d = pose.to_se3();
+  PclCloudPtr cloud_in_world_frame{new pcl::PointCloud<pcl::PointXYZ>()};
+  pcl::transformPointCloud(*cloud_in_body_frame, *cloud_in_world_frame,
+                           pose_eigen4d);
+  // TODO, pixelize the cloud????
+  // TODO: write a test?
+  return cloud_in_world_frame;
+}
+
+/**
+ * @brief Pixelize a point cloud, regardless of the frame it's in
+ *
+ * @param cloud - pcl Point cloud
+ * @param resolution - resolution in meters
+ */
+inline void pixelize_point_cloud(PclCloudPtr cloud, const double &resolution) {
+  for (auto &point : cloud->points) {
+    point.x = static_cast<int>(std::floor(point.x / resolution));
+    point.y = static_cast<int>(std::floor(point.y / resolution));
+  }
+}
+
 } // namespace RosUtils
 
 namespace DreamGMapping {
@@ -126,6 +152,7 @@ protected:
   Eigen::Matrix2d motion_covariances_{Eigen::Matrix2d::Identity()};
   // No need to be user-initialized
   Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
+  double resolution_;
 
   // inconfigurable parameters
   // no need to store
@@ -139,16 +166,27 @@ protected:
   std::pair<double, double> last_wheel_odom_{0.0, 0.0};
   std::pair<double, double> current_wheel_odom_{0.0, 0.0};
 
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> last_cloud_{
-      new pcl::PointCloud<pcl::PointXYZ>()};
+  PclCloudPtr last_cloud_{new pcl::PointCloud<pcl::PointXYZ>()};
   std::vector<DreamGMapping::Particle> particles_;
+  // transforms to neighbors around a pose estimate
+  std::vector<Eigen::Matrix4d> neighbor_transforms_;
 
   // get the most recent odom -> draw a new noise -> go through all particles,
   void store_last_scan(
       const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
-  void
-  store_last_scan(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> to_update);
-  void update_with_motion_model();
-  void scan_match_for_guess();
+  void store_last_scan(PclCloudPtr to_update);
+
+  PclCloudPtr
+  get_point_cloud_in_world_frame(const SimpleRoboticsCppUtils::Pose2D &pose,
+                                 const PclCloudPtr cloud_in_body_frame);
+
+  std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
+  optimizeAfterIcp(const DreamGMapping::Particle &particle,
+                   const Eigen::Ref<Eigen::Matrix4d> T_icp_output);
+
+  // Note: cloud_in_world_frame is specific to each pose estimate
+  void update_particle(const SimpleRoboticsCppUtils::Pose2D &pose,
+                       const double &weight,
+                       const PclCloudPtr cloud_in_world_frame);
 };
 } // namespace DreamGMapping
