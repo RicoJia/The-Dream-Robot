@@ -34,9 +34,11 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen
 # Unit Tests Then one can run these tests using catkin_make run_tests or
 # catkin_make run_tests --pkg <PKG_NAME> file(GLOB test_src_files
 # "tests/unit/*.cpp")
-catkin_add_gtest(test_particle_filter tests/unit/test_particle_filter.cpp)
+catkin_add_gtest(test_dream_gmapping_utils
+                 tests/unit/test_dream_gmapping_utils.cpp)
 catkin_add_gtest(test_dream_gmapper tests/unit/test_dream_gmapper.cpp
                  src/dream_gmapper.cpp)
-target_link_libraries(test_particle_filter ${catkin_LIBRARIES} Eigen3::Eigen)
+target_link_libraries(test_dream_gmapping_utils ${catkin_LIBRARIES}
+                      Eigen3::Eigen ${PCL_LIBRARIES})
 target_link_libraries(test_dream_gmapper ${catkin_LIBRARIES} Eigen3::Eigen
                       ${PCL_LIBRARIES})

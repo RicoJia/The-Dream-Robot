@@ -63,7 +63,7 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   motion_covariances_ << d_v_std_dev, 0.0, 0.0, d_theta_std_dev;
   nh_.getParam("resolution", resolution_);
 
-  RosUtils::print_all_nodehandle_params(nh_);
+  DreamGMapping::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
 
   // we are not using TimeSynchronizer because tf2 already provides buffering
@@ -120,7 +120,7 @@ void DreamGMapper::laser_scan(
     return;
 
   PclCloudPtr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-  bool filling_success = RosUtils::fill_point_cloud(scan_msg, cloud);
+  bool filling_success = DreamGMapping::fill_point_cloud(scan_msg, cloud);
   if (!filling_success) {
     ROS_WARN("Failed to fill point cloud");
     return;
@@ -128,8 +128,8 @@ void DreamGMapper::laser_scan(
 
   // - icp: scan match, get initial guess
   Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
-  bool icp_converge =
-      RosUtils::icp_2d(last_cloud_, cloud, screw_displacement, T_icp_output);
+  bool icp_converge = DreamGMapping::icp_2d(last_cloud_, cloud,
+                                            screw_displacement, T_icp_output);
 
   std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
   cloud_in_world_frame_vec.reserve(particle_num_);
@@ -152,8 +152,8 @@ void DreamGMapper::laser_scan(
           motion_covariances_);
       score = s;
       new_pose_estimate = m;
-      RosUtils::get_point_cloud_in_world_frame(new_pose_estimate,
-                                               cloud_in_world_frame);
+      DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
+                                                    cloud_in_world_frame);
     }
     // need to store score, and the new pose now, new point cloud in world frame
     cloud_in_world_frame_vec.push_back(cloud_in_world_frame);
@@ -178,7 +178,7 @@ void DreamGMapper::wheel_odom(
 
 void DreamGMapper::store_last_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
-  RosUtils::fill_point_cloud(scan_msg, last_cloud_);
+  DreamGMapping::fill_point_cloud(scan_msg, last_cloud_);
 }
 void DreamGMapper::store_last_scan(PclCloudPtr to_update) {
   last_cloud_ = to_update;
@@ -222,14 +222,17 @@ DreamGMapper::optimizeAfterIcp(const DreamGMapping::Particle &particle,
     auto new_pose_estimate_neighbor = motion * new_pose_estimate;
     PclCloudPtr cloud_in_world_frame_pixelized(
         new pcl::PointCloud<pcl::PointXYZ>());
-    RosUtils::get_point_cloud_in_world_frame(
+    DreamGMapping::get_point_cloud_in_world_frame(
         SimpleRoboticsCppUtils::Pose2D(new_pose_estimate_neighbor),
         cloud_in_world_frame_pixelized);
-    RosUtils::pixelize_point_cloud(cloud_in_world_frame_pixelized, resolution_);
+    DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_pixelized,
+                                        resolution_);
+    for (const auto &endpoint : cloud_in_world_frame_pixelized->points) {
+    }
   }
   // TODO
   // cloud_in_world_frame = best_current_neighbor_cloud;
-  // RosUtils::get_point_cloud_in_world_frame()
+  // DreamGMapping::get_point_cloud_in_world_frame()
   // refine_particle_pose_and_score
   // - for each particle, sample around the scan matched position K times?
   // - Then calculate score for each particle

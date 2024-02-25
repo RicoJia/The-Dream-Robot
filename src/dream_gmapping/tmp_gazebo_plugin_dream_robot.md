@@ -34,9 +34,7 @@ for each particle:
 #### update_particle_pose
 1. sample K. for each K particle_score = score(k_pose, laserscan)
     1. for each pose in kernel K: (TODO: pixelize point cloud?)
-        - Do I need the naive world frame one? We want to store pc in pixels.
-        - transform -> world pixel
-        - world -> transform (center)
+        - Do I need the naive world frame one? We want to store pc in pixels.  - transform -> world pixel - world -> transform (center)
     2. `score = motion model score * likelihood comparison (laser point needs to be transformed to pixels already.).`. Likelihood comparison: 2000 points `(2000*k look ups + if);` See scanmatcher.h, score. "Fullness". For each beam: 
         1. compare ip_free and if_hit at the same time. 
         2. move around the kernel, find the closest occupied cell, and its distance, mu. The score of that beam is exp(-1 * mu * mu/sigma).         3. Then total score of k_pose is prod(exp(-1 * mu * mu/sigma)) * p(motion_model)
