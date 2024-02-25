@@ -1,6 +1,7 @@
 #pragma once
 #include "simple_robotics_cpp_utils/rigid2d.hpp"
 #include <boost/smart_ptr/shared_ptr.hpp>
+#include <iostream>
 #include <pcl/point_cloud.h>
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
@@ -19,9 +20,27 @@ private:
   std::unordered_map<long, SimpleRoboticsCppUtils::Pixel2DWithCount> count_map_;
 
 public:
-  void add_point(SimpleRoboticsCppUtils::Pixel2DWithCount &&p) {
-    count_map_.emplace(std::hash<SimpleRoboticsCppUtils::Pixel2DWithCount>()(p),
-                       std::move(p));
+  inline void add_point(const unsigned int &x, const unsigned int &y,
+                        bool is_hit) {
+    const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
+    if (!count_map_.contains(key)) {
+
+      count_map_.emplace(key, SimpleRoboticsCppUtils::Pixel2DWithCount(x, y));
+    }
+    if (is_hit) {
+      count_map_.at(key).hit_count_++;
+    }
+    count_map_.at(key).total_count_++;
+  }
+
+  inline std::pair<unsigned int, unsigned int>
+  get_counts(const unsigned int &x, const unsigned int &y) {
+    const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
+    if (!count_map_.contains(key)) {
+      return std::make_pair(0, 0);
+    }
+    return std::make_pair(count_map_.at(key).hit_count_,
+                          count_map_.at(key).total_count_);
   }
 };
 

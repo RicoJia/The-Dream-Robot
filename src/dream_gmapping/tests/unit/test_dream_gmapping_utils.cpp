@@ -103,20 +103,6 @@ TEST(ParticleFilterTests, TestParticleMemoryWorstCase) {
   // flaky.
 }
 
-TEST(ParticleFilterTests, TestPixel) {
-  // turns out, this map could be resized after hitting a certain size
-  std::unordered_map<int, SimpleRoboticsCppUtils::Pixel2DWithCount> count_map;
-  long init_size = get_memory_usage();
-  for (unsigned int j = 0; j < OBSTACLE_COUNT; j++) {
-    count_map.emplace(std::piecewise_construct, std::make_tuple(j),
-                      std::make_tuple(j, j, 1));
-  }
-  auto after_size = get_memory_usage();
-  std::cout << "For obstacle count: " << OBSTACLE_COUNT
-            << ", the map size is: " << after_size << "kb" << std::endl;
-  // 10 ^ 7 => 63Mb
-}
-
 /**********************************Utils Tests*********************************/
 
 // Creating a "wall" along the y axis at x=distance
@@ -204,6 +190,23 @@ TEST(DreamGMapperUtilsTests, PixelizePointCloudTest) {
   DreamGMapping::pixelize_point_cloud(cloud, RESOLUTION);
   EXPECT_EQ(cloud->points[0].x, 0);
   EXPECT_EQ(cloud->points[0].y, 0);
+}
+
+TEST(DreamGMapperUtilsTests, PointAccumulatorTest) {
+  DreamGMapping::PointAccumulator pa;
+  pa.add_point(0, 0, false);
+  pa.add_point(0, 0, false);
+  pa.add_point(0, 0, true);
+  auto [hit_count, total_count] = pa.get_counts(0, 0);
+  // TODO
+  EXPECT_EQ(hit_count, 1);
+  EXPECT_EQ(total_count, 3);
+  std::cout << "hit_count: " << hit_count << " total_count: " << total_count
+            << std::endl;
+
+  auto [hit_counts2, total_counts2] = pa.get_counts(1, 0);
+  EXPECT_EQ(hit_counts2, 0);
+  EXPECT_EQ(total_counts2, 0);
 }
 
 // Run all the tests that were declared with TEST()
