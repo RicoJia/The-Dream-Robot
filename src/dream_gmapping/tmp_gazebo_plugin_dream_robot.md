@@ -12,7 +12,7 @@
 
 ### Scan Match Week of Feb 24
 1. scan_match_success, icp_corrected = icp(prev_odom, last_scan, current_scan, T_init)
-    - TODO: how does PCL do it, expensive? 
+    - TODO: how does PCL do it, expensive? (D)
     - TODO: get_point_cloud_in_world_frame(robot_pose, scan_msg);, test (D)
 2. If scan_match_fail:
     for each particle:

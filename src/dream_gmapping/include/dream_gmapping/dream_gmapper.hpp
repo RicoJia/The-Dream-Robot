@@ -41,6 +41,8 @@ protected:
   // No need to be user-initialized
   Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
   double resolution_;
+  double beam_noise_sigma_;
+  double beam_kernel_size_;
 
   // inconfigurable parameters
   // no need to store
@@ -58,6 +60,9 @@ protected:
   std::vector<DreamGMapping::Particle> particles_;
   // transforms to neighbors around a pose estimate
   std::vector<Eigen::Matrix4d> neighbor_transforms_;
+  std::vector<Eigen::Matrix4d> motion_set_;
+
+  void initialize_motion_set();
 
   // get the most recent odom -> draw a new noise -> go through all particles,
   void store_last_scan(
@@ -70,7 +75,12 @@ protected:
 
   std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
   optimizeAfterIcp(const DreamGMapping::Particle &particle,
-                   const Eigen::Ref<Eigen::Matrix4d> T_icp_output);
+                   const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
+                   ScanMsgPtr scan_msg);
+
+  std::pair<double, Pose2D>
+  observation_model_score(PclCloudPtr cloud_in_world_frame_pixelized,
+                          ScanMsgPtr scan_msg, const Pose2D &pose_estimate);
 
   // Note: cloud_in_world_frame is specific to each pose estimate
   void update_particle(const SimpleRoboticsCppUtils::Pose2D &pose,

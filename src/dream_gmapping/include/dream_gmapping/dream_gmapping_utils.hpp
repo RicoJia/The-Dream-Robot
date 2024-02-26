@@ -12,12 +12,15 @@
 namespace DreamGMapping {
 
 using PclCloudPtr = boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>;
+using ScanMsgPtr = boost::shared_ptr<const sensor_msgs::LaserScan>;
+using SimpleRoboticsCppUtils::Pixel2DWithCount;
+using SimpleRoboticsCppUtils::Pose2D;
 
 class PointAccumulator {
 private:
   // { long: {<x,y>, count}} = 8 + 4 + 4 + 4 = 20 bytes. That translates to 20MB
   // of memory. In reality, 67MB for 100 Particles, 10000 points
-  std::unordered_map<long, SimpleRoboticsCppUtils::Pixel2DWithCount> count_map_;
+  std::unordered_map<long, Pixel2DWithCount> count_map_;
 
 public:
   inline void add_point(const unsigned int &x, const unsigned int &y,
@@ -25,7 +28,7 @@ public:
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
     if (!count_map_.contains(key)) {
 
-      count_map_.emplace(key, SimpleRoboticsCppUtils::Pixel2DWithCount(x, y));
+      count_map_.emplace(key, Pixel2DWithCount(x, y));
     }
     if (is_hit) {
       count_map_.at(key).hit_count_++;
