@@ -8,6 +8,7 @@
 // contains pcl::PointXYZ
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <vector>
 
 namespace DreamGMapping {
 
@@ -36,8 +37,31 @@ public:
     count_map_.at(key).total_count_++;
   }
 
+  /**
+   * @brief we are returning if a pixel is full by a set standard. (if the pixel
+   * is unknown, it is not full)
+   * TODO: check if we need to change the unknown stage
+   *
+   * @param p
+   * @return true
+   * @return false
+   */
+  inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
+    auto [hit_count, total_count] = get_counts(p.x, p.y);
+    // We set 0.5 as known/unknown boundary.
+    return (hit_count << 1) > total_count;
+  }
+
+  /**
+   * @brief Return a pixel's counts of hits and total counts. If the pixel
+   * doesn't exist, return 0, 0
+   *
+   * @param x
+   * @param y
+   * @return std::pair<unsigned int, unsigned int> : hit_count, total_count
+   */
   inline std::pair<unsigned int, unsigned int>
-  get_counts(const unsigned int &x, const unsigned int &y) {
+  get_counts(const unsigned int &x, const unsigned int &y) const {
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
     if (!count_map_.contains(key)) {
       return std::make_pair(0, 0);
@@ -157,6 +181,24 @@ inline void pixelize_point_cloud(PclCloudPtr cloud, const double &resolution) {
     point.x = static_cast<int>(std::floor(point.x / resolution));
     point.y = static_cast<int>(std::floor(point.y / resolution));
   }
+}
+
+// TODO
+// inline void add_cloud_in_world_frame_to_map(Particle& particle, PclCloudPtr
+// cloud_vec){
+//     for(const beam)
+// }
+
+// TODO
+inline std::vector<unsigned int>
+get_resampled_indices(const std::vector<Particle> &particles) {
+  // // Create a CDF of weights, using transform
+  // auto vec = get_cdf_of_weights();
+  // std::vector<unsigned int> indices (vec.size(),0);
+  // for(auto& i : vec){
+  //     i = uniform(0:vec.back());
+  // }
+  // return vec
 }
 
 }; // namespace DreamGMapping

@@ -40,3 +40,6 @@ Point to point mapping is the most basic form of ICP: we assume a point in one c
 3. So to get the minimum $|e|$, it's equivalent to getting $\delta p = p-p_0 = argmin[(e(p_0) + J^T(p - p_0))^2]$. Taking the first order derivative gives: $J(p)e(p) + J(p)^TJ(p) \delta p = 0$. Doing this over all n cloud points: $H = \sum_N(J_n(p)^TJ_n(p))$, $b=\sum_N J_n(p)e_n(p)$, and $\delta p = -H^{-1}b$
 
 4. Keep repeating step 3 until convergence
+
+### Potential Bug List
+- we are returning if a pixel is full by a set standard. (if the pixel is unknown, it is not full). TODO: check if we need to change the unknown stage

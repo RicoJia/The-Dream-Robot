@@ -41,7 +41,8 @@ protected:
   // No need to be user-initialized
   Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
   double resolution_;
-  double beam_noise_sigma_;
+  double beam_noise_variance_;
+  double log_prob_beam_not_found_in_kernel_;
   double beam_kernel_size_;
 
   // inconfigurable parameters
@@ -61,6 +62,9 @@ protected:
   // transforms to neighbors around a pose estimate
   std::vector<Eigen::Matrix4d> neighbor_transforms_;
   std::vector<Eigen::Matrix4d> motion_set_;
+  unsigned int best_particle_index_ = 0;
+  std::vector<char> beam_search_kernel_ =
+      std::vector<char>(2 * beam_kernel_size_ + 1, 0);
 
   void initialize_motion_set();
 
@@ -78,13 +82,21 @@ protected:
                    const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
                    ScanMsgPtr scan_msg);
 
-  std::pair<double, Pose2D>
+  /**
+   * @brief Score a point cloud in world frame pixels based on a gaussian
+   * observation model
+   *
+   * @param cloud_in_world_frame_pixelized :  point cloud in world frame pixels
+   * @param scan_msg : original point cloud that has range information
+   * @param pose_estimate pose estimate of the robot
+   * @return double: gaussian likelihood of having all beams
+   */
+  double
   observation_model_score(PclCloudPtr cloud_in_world_frame_pixelized,
-                          ScanMsgPtr scan_msg, const Pose2D &pose_estimate);
+                          ScanMsgPtr scan_msg, const Pose2D &pose_estimate,
+                          const PointAccumulator &laser_point_accumulation_map);
 
-  // Note: cloud_in_world_frame is specific to each pose estimate
-  void update_particle(const SimpleRoboticsCppUtils::Pose2D &pose,
-                       const double &weight,
-                       const PclCloudPtr cloud_in_world_frame);
+  void resample_if_needed_and_update_particle_map_and_find_best_pose();
+  void publish_map();
 };
 } // namespace DreamGMapping

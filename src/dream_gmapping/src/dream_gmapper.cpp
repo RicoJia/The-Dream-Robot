@@ -35,6 +35,8 @@
 #include "dream_gmapping/dream_gmapping_utils.hpp"
 #include "simple_robotics_cpp_utils/math_utils.hpp"
 #include "tf2/exceptions.h"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -43,7 +45,9 @@
 #include <ros/ros.h>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace DreamGMapping {
 DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
@@ -65,8 +69,11 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   nh_.getParam("d_theta_std_dev", d_theta_std_dev);
   motion_covariances_ << d_v_std_dev, 0.0, 0.0, d_theta_std_dev;
   nh_.getParam("resolution", resolution_);
-  nh_.getParam("beam_noise_sigma", beam_noise_sigma_);
+  nh_.getParam("beam_noise_sigma_squared", beam_noise_variance_);
   nh_.getParam("beam_kernel_size", beam_kernel_size_);
+  log_prob_beam_not_found_in_kernel_ =
+      -(2 * std::pow(resolution_ * beam_kernel_size_, 2)) /
+      beam_noise_variance_;
 
   DreamGMapping::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
@@ -86,6 +93,10 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   }
 
   initialize_motion_set();
+  for (char i = 1; i < beam_kernel_size_; ++i) {
+    beam_search_kernel_[2 * i - 1] = i;
+    beam_search_kernel_[2 * i] = -i;
+  }
 
   ROS_INFO_STREAM("Successfully initialized dream_gmapping");
 }
@@ -182,7 +193,7 @@ void DreamGMapper::laser_scan(
       DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
                                                     cloud_in_world_frame);
     }
-    // need to store score, and the new pose now, new point cloud in world frame
+    // store score, and the new pose now, new point cloud in world frame
     cloud_in_world_frame_vec.push_back(cloud_in_world_frame);
     particle.pose_traj_.back() =
         std::make_shared<SimpleRoboticsCppUtils::Pose2D>(new_pose_estimate);
@@ -190,11 +201,9 @@ void DreamGMapper::laser_scan(
   }
 
   // TODO
-  // Store world frame point cloud later.
-  // - resample based on the scores.
-  // update_particle(new_pose_estimate, score, cloud_in_body_frame);
-  // - map update
-  //   store_last_scan(cloud);
+  resample_if_needed_and_update_particle_map_and_find_best_pose();
+  publish_map();
+  store_last_scan(cloud);
 }
 
 // [left, right], the wheel positions are [0, 2pi]
@@ -234,25 +243,24 @@ DreamGMapper::optimizeAfterIcp(const DreamGMapping::Particle &particle,
   double best_score = std::numeric_limits<double>::min();
   Pose2D best_pose(0, 0, 0);
   for (const auto &motion : motion_set_) {
-    // search around new_pose_estimate, each neighbor has a pixelized point
-    // cloud
-    Eigen::Matrix4d new_pose_estimate_neighbor = motion * new_pose_estimate;
+    // search around new_pose_estimate, each neighbor has a pixelized pointcloud
+    auto new_pose_estimate_neighbor =
+        SimpleRoboticsCppUtils::Pose2D(motion * new_pose_estimate);
     PclCloudPtr cloud_in_world_frame_pixelized(
         new pcl::PointCloud<pcl::PointXYZ>());
     DreamGMapping::fill_point_cloud(scan_msg, cloud_in_world_frame_pixelized);
     DreamGMapping::get_point_cloud_in_world_frame(
-        SimpleRoboticsCppUtils::Pose2D(new_pose_estimate_neighbor),
-        cloud_in_world_frame_pixelized);
+        new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
     DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_pixelized,
                                         resolution_);
     // observation model
-    auto [score, corrected_new_pose] =
-        observation_model_score(cloud_in_world_frame_pixelized, scan_msg,
-                                Pose2D(new_pose_estimate_neighbor));
+    double score = observation_model_score(
+        cloud_in_world_frame_pixelized, scan_msg, new_pose_estimate_neighbor,
+        particle.laser_point_accumulation_map_);
     if (score > best_score) {
       best_score = score;
       best_cloud = cloud_in_world_frame_pixelized;
-      best_pose = corrected_new_pose;
+      best_pose = new_pose_estimate_neighbor;
     }
   }
 
@@ -260,38 +268,99 @@ DreamGMapper::optimizeAfterIcp(const DreamGMapping::Particle &particle,
 }
 
 // TODO test 1
-std::pair<double, Pose2D> DreamGMapper::observation_model_score(
+double DreamGMapper::observation_model_score(
     PclCloudPtr cloud_in_world_frame_pixelized, ScanMsgPtr scan_msg,
-    const Pose2D &pose_estimate) {
+    const Pose2D &pose_estimate,
+    const PointAccumulator &laser_point_accumulation_map) {
   double score = 0;
-  Pose2D corrected_pose = pose_estimate;
   Pixel2DWithCount pose_estimated_pixelized =
       Pixel2DWithCount(pose_estimate, resolution_);
-  for (const auto &endpoint : cloud_in_world_frame_pixelized->points) {
-  }
-  // TODO
-  // Pre-compute the kernel. [0, 1, -1, 2, -2], use it in both xx and yy
-  // directions Find the pixelized p_hit_original.  Is gmapping searching in a
-  // 2d window. In a length kernel along the beam, like d, going from 0 to
-  // kernel_size. should  we search positive d. Find the pixelized p_hit given
-  // d. and p_free right in front of it. If p_hit is full but p_free is not,
-  // then we have a match, then score (2 * 2000 lookups) exp(-1 * mu * mu/sigma)
-  // If not found, multiply exp(-1*kernel_size_^2/sigma), PRECOMPUTED
-  // add the score
 
-  // use scan msg to determine the beam's range
-  // Max_scan? just see if p_free is truly free. If not, then move around the
-  // kernel and find the p_free's closest free point min scan: disregard the
-  // point
+  // go over all scan message, and their angle
+  for (double angle = scan_msg->angle_min, i = 0; i < scan_msg->ranges.size();
+       i++, angle += scan_msg->angle_increment) {
+    auto endpoint = cloud_in_world_frame_pixelized
+                        ->points[i]; // x, y in world frame, pixelized
+    auto endpoint_pixel = Pixel2DWithCount(endpoint.x, endpoint.y);
+    auto p_free_offset = SimpleRoboticsCppUtils::get_unit_vector_endpoint_pixel(
+        endpoint_pixel, pose_estimated_pixelized);
+    // Pre-compute the kernel. [0, 1, -1, 2, -2], use it in both xx and yy
+    // directions. Find the pixelized p_hit given
+    // We go over a 2D kernel layer by layer. Each layer goes around a square,
+    // like [1, 0], [1,1], [1,-1], [] something like (2,4) before even going to
+    bool match_found = false;
+    double resolution_squared = resolution_ * resolution_;
+    for (const char &xx : beam_search_kernel_) {
+      for (unsigned int i = 0;
+           std::abs(beam_search_kernel_.at(i)) < std::abs(xx) &&
+           i < beam_search_kernel_.size();
+           i++) {
+        const char &yy = beam_search_kernel_[i];
+        // TODO to remove after testing
+        std::cout << "xx: " << xx << "yy: " << yy << std::endl;
+        // find p_hit and p_free right in front of it.
+        auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
+        auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
+                                       p_hit.y + p_free_offset.y);
+        // If p_hit is full or p_hit is a max, but p_free is not, then we have a
+        // match, then score (2 * 2000 lookups) and quit. TODO: is_full returns
+        // false even on unknown pixels
+        if (!laser_point_accumulation_map.is_full(p_free) &&
+            (laser_point_accumulation_map.is_full(p_hit) ||
+             scan_msg->ranges[i] == scan_msg->range_max)) {
+          // compute the log score of the single beam match
+          score +=
+              -(xx * xx + yy * yy) * resolution_squared / beam_noise_variance_;
+          break;
+        }
+      }
+    }
+    // If not found, add multiply exp(-1*kernel_size_^2/sigma), PRECOMPUTED
+    if (!match_found) {
+      score += log_prob_beam_not_found_in_kernel_;
+    }
+  }
+
   // take exponential of the sum score
-  return std::make_pair(score, pose_estimate);
+  return std::exp(score);
 }
 
-// void DreamGMapper::update_particle(
-//     const SimpleRoboticsCppUtils::Pose2D &pose, const double &weight,
-//     const PclCloudPtr
-//         cloud_in_world_frame) {
-//             // trans
-//         }
+void DreamGMapper::
+    resample_if_needed_and_update_particle_map_and_find_best_pose() {
+  // neff = get_neff(particles_);
+  // if (neff < neff_threshold_){
+  //     auto resampled_indices = get_resampled_indices();
+  std::vector<unsigned int> counts(particle_num_, 0);
+  //     std::vector<Particle> tmp_particles();
+  //     tmp_particles.reserve(num_particles_);
+  //     const double weight = 1.0/num_particles_;
+  //     for(i < num_particles_){
+  //         const unsigned int resampled_index = resampled_indices[i];
+  //         ++counts[resampled_index];
+  //         tmp_particles.push_back(particles_.at(resampled_index));
+  //         tmp_particles.back().weight_ = weight;
+  //         add_cloud_in_world_frame_to_map(tmp_particles.back(), cloud_vec[i])
+  //     }
+  //     particles_ = tmp_particles;
+  // best_particle_index_ =
+  // SimpleRoboticsCppUtils::index_of_the_largest_element(counts); // TODO
+  // } else {
+  //     // just add point clouds into maps.
+  //     for(i < num_particles_){
+  //         particle = particles_[i];
+  //         add_cloud_in_world_frame_to_map(particle, cloud_vec[i])
+  //     }
+  std::vector<double> scores(particle_num_, 0);
+  std::transform(particles_.begin(), particles_.end(), scores.begin(),
+                 [](const Particle &particle) { return particle.weight_; });
+  // best_particle_index_ =
+  // SimpleRoboticsCppUtils::index_of_the_largest_element(counts);
+  // }
+}
+
+void DreamGMapper::publish_map() {
+  // get the best pose
+  // add each point to the map
+}
 
 } // namespace DreamGMapping

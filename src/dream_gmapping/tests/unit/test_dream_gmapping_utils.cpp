@@ -199,6 +199,7 @@ TEST(DreamGMapperUtilsTests, PointAccumulatorTest) {
   pa.add_point(0, 0, true);
   auto [hit_count, total_count] = pa.get_counts(0, 0);
   // TODO
+  EXPECT_EQ(pa.is_full(SimpleRoboticsCppUtils::Pixel2DWithCount(0, 0)), false);
   EXPECT_EQ(hit_count, 1);
   EXPECT_EQ(total_count, 3);
   std::cout << "hit_count: " << hit_count << " total_count: " << total_count
