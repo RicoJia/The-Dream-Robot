@@ -40,6 +40,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <pcl/common/transforms.h>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
@@ -179,7 +180,6 @@ void DreamGMapper::laser_scan(
     // In the if clause, we need: score, the new pose and the new point cloud in
     // world frame
     if (icp_converge) {
-      // TODO: not tested yet
       // Unit-testble optimization function
       auto [s, m, cloud_in_world_frame] =
           optimizeAfterIcp(particle, T_icp_output, scan_msg);
@@ -221,7 +221,7 @@ void DreamGMapper::store_last_scan(PclCloudPtr to_update) {
   last_cloud_ = to_update;
 }
 
-// TODO test
+// TODO test 2
 /**
  * @brief One difference from the original RBPF SLAM paper is that a particle's
  score is not sum_(Probability(pose_sample) * Probability(scan_of_pose_sample))
@@ -325,8 +325,24 @@ double DreamGMapper::observation_model_score(
   return std::exp(score);
 }
 
+void DreamGMapper::normalize_weights(std::vector<Particle> &particles) {
+  double sum = 0;
+  std::accumulate(
+      particles.begin(), particles.end(), sum,
+      [](double sum, const Particle &P) { return sum + P.weight_; });
+  if (std::abs(sum) < 1e-5) {
+    std::cout << "normalize_weights: sum is too close to 0: " << sum
+              << std::endl;
+    return;
+  } else {
+    std::for_each(particles.begin(), particles.end(),
+                  [sum](Particle &p) { p.weight_ = p.weight_ / sum; });
+  }
+}
+
 void DreamGMapper::
     resample_if_needed_and_update_particle_map_and_find_best_pose() {
+  normalize_weights(particles_);
   // neff = get_neff(particles_);
   // if (neff < neff_threshold_){
   //     auto resampled_indices = get_resampled_indices();

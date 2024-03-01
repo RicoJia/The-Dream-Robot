@@ -96,6 +96,7 @@ protected:
                           ScanMsgPtr scan_msg, const Pose2D &pose_estimate,
                           const PointAccumulator &laser_point_accumulation_map);
 
+  void normalize_weights(std::vector<Particle> &particles);
   void resample_if_needed_and_update_particle_map_and_find_best_pose();
   void publish_map();
 };
