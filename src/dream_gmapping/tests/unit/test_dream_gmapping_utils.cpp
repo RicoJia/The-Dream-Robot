@@ -198,7 +198,6 @@ TEST(DreamGMapperUtilsTests, PointAccumulatorTest) {
   pa.add_point(0, 0, false);
   pa.add_point(0, 0, true);
   auto [hit_count, total_count] = pa.get_counts(0, 0);
-  // TODO
   EXPECT_EQ(pa.is_full(SimpleRoboticsCppUtils::Pixel2DWithCount(0, 0)), false);
   EXPECT_EQ(hit_count, 1);
   EXPECT_EQ(total_count, 3);
@@ -208,6 +207,39 @@ TEST(DreamGMapperUtilsTests, PointAccumulatorTest) {
   auto [hit_counts2, total_counts2] = pa.get_counts(1, 0);
   EXPECT_EQ(hit_counts2, 0);
   EXPECT_EQ(total_counts2, 0);
+
+  pa.add_point(1, 0, true);
+  pa.add_point(1, -1, false);
+  pa.add_point(-2, -2, true);
+  std::vector<int8_t> data;
+  // so [-2, 1] along x and y directions
+  unsigned int map_size = 4, origin_offset = map_size * map_size / 2;
+  pa.fill_ros_map(data, map_size, origin_offset);
+  EXPECT_EQ(data[0], 100);  // (-2,-2)
+  EXPECT_EQ(data[10], 0);   // (0,0)
+  EXPECT_EQ(data[7], 0);    // (1,-1)
+  EXPECT_EQ(data[14], 100); // (1,1)
+}
+
+TEST(DreamGMapperUtilsTests, FindMostWeightedParticleIndex) {
+  const unsigned int num_particles = 5;
+  auto particles = std::vector<Particle>(num_particles, Particle());
+  for (auto &p : particles) {
+    p.weight_ = 1.0 / 5.0;
+  }
+  particles[num_particles - 1].weight_ = 1.0;
+  unsigned int best_particle_index = 0;
+  find_most_weighted_particle_index(particles, best_particle_index);
+  EXPECT_EQ(best_particle_index, num_particles - 1);
+
+  std::unordered_map<unsigned int, unsigned int> counts{
+      {40, 2},
+      {12, 1},
+      {14, 5},
+      {11, 7},
+  };
+  find_most_weighted_particle_index(counts, best_particle_index);
+  EXPECT_EQ(best_particle_index, 11);
 }
 
 // Run all the tests that were declared with TEST()

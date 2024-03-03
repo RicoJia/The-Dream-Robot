@@ -7,7 +7,8 @@
     - @subscribes: /odom: wheel positions in m/s. [left, right]
     - @subscribes: /tf: listens for for odom -> baselink
     PUBLISHES:
-    - @publishes: /map: map of the current environment
+    - @publishes: /map: map of the current environment. Note, currently map is
+   fixed size and does NOT size up
     - @publishes: /tf: map -> odom transform
 
     PARAMETERS:
@@ -33,6 +34,7 @@
 // Need message filter. Also, a 1s "expiration time"?
 #include "dream_gmapping/dream_gmapper.hpp"
 #include "dream_gmapping/dream_gmapping_utils.hpp"
+#include "nav_msgs/OccupancyGrid.h"
 #include "simple_robotics_cpp_utils/math_utils.hpp"
 #include "tf2/exceptions.h"
 #include <algorithm>
@@ -42,6 +44,7 @@
 #include <memory>
 #include <numeric>
 #include <pcl/common/transforms.h>
+#include <random>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
@@ -75,6 +78,11 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   log_prob_beam_not_found_in_kernel_ =
       -(2 * std::pow(resolution_ * beam_kernel_size_, 2)) /
       beam_noise_variance_;
+  double map_size_in_meters;
+  nh_.getParam("map_size_in_meters", map_size_in_meters);
+  map_size_ = static_cast<unsigned int>(map_size_in_meters / resolution_);
+  map_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("map", 1);
+  initialize_map();
 
   DreamGMapping::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
@@ -103,6 +111,19 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
 }
 
 DreamGMapper::~DreamGMapper() = default;
+
+void DreamGMapper::initialize_map() {
+  map_.header.frame_id = "map";
+  map_.info.resolution = resolution_;
+  map_.info.width = map_size_;
+  map_.info.height = map_size_;
+  // this is the real world pose of (0, 0) of the map.
+  map_.info.origin.position.x = -map_size_ / 2 * resolution_;
+  map_.info.origin.position.y = -map_size_ / 2 * resolution_;
+  map_.info.origin.position.z = 0.0;
+  origin_offset_ = map_size_ * map_size_ / 2;
+  map_.info.origin.orientation.w = 1.0;
+}
 
 void DreamGMapper::initialize_motion_set() {
   // TODO - to move
@@ -192,6 +213,8 @@ void DreamGMapper::laser_scan(
       new_pose_estimate = m;
       DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
                                                     cloud_in_world_frame);
+      // TODO: pixelize
+      DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
     }
     // store score, and the new pose now, new point cloud in world frame
     cloud_in_world_frame_vec.push_back(cloud_in_world_frame);
@@ -200,8 +223,8 @@ void DreamGMapper::laser_scan(
     particle.weight_ = score;
   }
 
-  // TODO
-  resample_if_needed_and_update_particle_map_and_find_best_pose();
+  resample_if_needed_and_update_particle_map_and_find_best_pose(
+      cloud_in_world_frame_vec);
   publish_map();
   store_last_scan(cloud);
 }
@@ -326,9 +349,8 @@ double DreamGMapper::observation_model_score(
 }
 
 void DreamGMapper::normalize_weights(std::vector<Particle> &particles) {
-  double sum = 0;
-  std::accumulate(
-      particles.begin(), particles.end(), sum,
+  double sum = std::accumulate(
+      particles.begin(), particles.end(), 0.0,
       [](double sum, const Particle &P) { return sum + P.weight_; });
   if (std::abs(sum) < 1e-5) {
     std::cout << "normalize_weights: sum is too close to 0: " << sum
@@ -340,43 +362,90 @@ void DreamGMapper::normalize_weights(std::vector<Particle> &particles) {
   }
 }
 
+std::vector<unsigned int> DreamGMapper::get_resampled_indices(
+    const std::vector<Particle> &particles) const {
+  std::vector<unsigned int> resampled_indices(particle_num_, 0);
+  std::vector<double> weights(particle_num_, 0.0);
+  std::transform(particles.begin(), particles.end(), weights.begin(),
+                 [](const Particle &p) -> double { return p.weight_; });
+  std::mt19937 rng(std::random_device{}());
+  // [0,1,2,...n-1]
+  std::discrete_distribution<unsigned int> dist(weights.begin(), weights.end());
+  for (auto &index : resampled_indices) {
+    index = dist(rng);
+  }
+  return resampled_indices;
+}
+
+void DreamGMapper::add_cloud_in_world_frame_to_map(
+    Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized) {
+  for (const auto &point : cloud_in_world_frame_vec_pixelized->points) {
+    p.laser_point_accumulation_map_.add_point(point.x, point.y, true);
+    auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
+        *p.pose_traj_.back(), resolution_);
+    auto endpoint_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
+        SimpleRoboticsCppUtils::Pixel2DWithCount(point.x, point.y));
+    // Need to add all free points as well
+    auto line = SimpleRoboticsCppUtils::bresenham_rico_line(pose_pixelized,
+                                                            endpoint_pixelized);
+    for (unsigned int i = 0; i < line.size() - 1; ++i) {
+      const auto &p_free = line[i];
+      p.laser_point_accumulation_map_.add_point(p_free.x, p_free.y, false);
+    }
+  }
+}
+
 void DreamGMapper::
-    resample_if_needed_and_update_particle_map_and_find_best_pose() {
+    resample_if_needed_and_update_particle_map_and_find_best_pose(
+        const std::vector<PclCloudPtr> &cloud_in_world_frame_vec) {
   normalize_weights(particles_);
-  // neff = get_neff(particles_);
-  // if (neff < neff_threshold_){
-  //     auto resampled_indices = get_resampled_indices();
-  std::vector<unsigned int> counts(particle_num_, 0);
-  //     std::vector<Particle> tmp_particles();
-  //     tmp_particles.reserve(num_particles_);
-  //     const double weight = 1.0/num_particles_;
-  //     for(i < num_particles_){
-  //         const unsigned int resampled_index = resampled_indices[i];
-  //         ++counts[resampled_index];
-  //         tmp_particles.push_back(particles_.at(resampled_index));
-  //         tmp_particles.back().weight_ = weight;
-  //         add_cloud_in_world_frame_to_map(tmp_particles.back(), cloud_vec[i])
-  //     }
-  //     particles_ = tmp_particles;
-  // best_particle_index_ =
-  // SimpleRoboticsCppUtils::index_of_the_largest_element(counts); // TODO
-  // } else {
-  //     // just add point clouds into maps.
-  //     for(i < num_particles_){
-  //         particle = particles_[i];
-  //         add_cloud_in_world_frame_to_map(particle, cloud_vec[i])
-  //     }
+  double normal_sqred_sum =
+      std::accumulate(particles_.begin(), particles_.end(), 0.0,
+                      [](double neff, const Particle &p) {
+                        return neff + p.weight_ * p.weight_;
+                      });
+  double neff = 1.0 / normal_sqred_sum;
+  // neff is maximal for equal weights. resample if neff < neff_threshold
+  if (neff < particle_num_ / 2.0) {
+    auto resampled_indices = get_resampled_indices(particles_);
+    std::unordered_map<unsigned int, unsigned int> counts;
+    std::vector<Particle> tmp_particles;
+    tmp_particles.reserve(particle_num_);
+    const double weight = 1.0 / particle_num_;
+    for (unsigned int i = 0; i < particle_num_; ++i) {
+      const unsigned int resampled_index = resampled_indices[i];
+      ++counts[resampled_index];
+      tmp_particles.push_back(particles_.at(resampled_index));
+      tmp_particles.back().weight_ = weight;
+      add_cloud_in_world_frame_to_map(tmp_particles.back(),
+                                      cloud_in_world_frame_vec[i]);
+    }
+    particles_ = tmp_particles;
+
+    find_most_weighted_particle_index(counts, best_particle_index_);
+  } else {
+    // just add point clouds into maps.
+    for (unsigned int i = 0; i < particle_num_; ++i) {
+      add_cloud_in_world_frame_to_map(particles_[i],
+                                      cloud_in_world_frame_vec[i]);
+    }
+    find_most_weighted_particle_index(particles_, best_particle_index_);
+  }
   std::vector<double> scores(particle_num_, 0);
   std::transform(particles_.begin(), particles_.end(), scores.begin(),
                  [](const Particle &particle) { return particle.weight_; });
-  // best_particle_index_ =
-  // SimpleRoboticsCppUtils::index_of_the_largest_element(counts);
-  // }
 }
 
+// TODO
+// Our map is a fixed size one, sizing-up is currently not supported
 void DreamGMapper::publish_map() {
   // get the best pose
-  // add each point to the map
+  const auto &best_particle = particles_.at(best_particle_index_);
+  map_.data = std::vector<int8_t>(map_size_ * map_size_, -1);
+  map_.header.stamp = ros::Time::now();
+  best_particle.laser_point_accumulation_map_.fill_ros_map(map_.data, map_size_,
+                                                           origin_offset_);
+  map_pub_.publish(map_);
 }
 
 } // namespace DreamGMapping

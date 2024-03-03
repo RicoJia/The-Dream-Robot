@@ -6,8 +6,10 @@
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 // contains pcl::PointXYZ
+#include <nav_msgs/OccupancyGrid.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <unordered_map>
 #include <vector>
 
 namespace DreamGMapping {
@@ -43,8 +45,6 @@ public:
    * TODO: check if we need to change the unknown stage
    *
    * @param p
-   * @return true
-   * @return false
    */
   inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
     auto [hit_count, total_count] = get_counts(p.x, p.y);
@@ -68,6 +68,25 @@ public:
     }
     return std::make_pair(count_map_.at(key).hit_count_,
                           count_map_.at(key).total_count_);
+  }
+
+  // Origin is at the center of the map
+  // Origin offset is the index of the origin in the 1D array
+  inline void fill_ros_map(std::vector<int8_t> &data,
+                           const unsigned int &map_size,
+                           const unsigned int &origin_offset) const {
+    for (const auto &pair : count_map_) {
+      const auto &pixel = pair.second;
+      const auto &hit_count = pixel.hit_count_;
+      const auto &total_count = pixel.total_count_;
+      // add each point to the map TODO. Obstacle is 100, free is 0
+      // full
+      if ((hit_count << 1) > total_count) {
+        data[pixel.y * map_size + pixel.x + origin_offset] = 100;
+      } else {
+        data[pixel.y * map_size + pixel.x + origin_offset] = 0;
+      }
+    }
   }
 };
 
@@ -183,22 +202,28 @@ inline void pixelize_point_cloud(PclCloudPtr cloud, const double &resolution) {
   }
 }
 
-// TODO
-// inline void add_cloud_in_world_frame_to_map(Particle& particle, PclCloudPtr
-// cloud_vec){
-//     for(const beam)
-// }
+inline void find_most_weighted_particle_index(
+    const std::unordered_map<unsigned int, unsigned int> counts,
+    unsigned int &best_particle_index) {
+  unsigned int best_particle_count = 0;
+  for (const auto &count_pair : counts) {
+    if (count_pair.second > best_particle_count) {
+      best_particle_count = count_pair.second;
+      best_particle_index = count_pair.first;
+    }
+  }
+}
 
-// TODO
-inline std::vector<unsigned int>
-get_resampled_indices(const std::vector<Particle> &particles) {
-  // // Create a CDF of weights, using transform
-  // auto vec = get_cdf_of_weights();
-  // std::vector<unsigned int> indices (vec.size(),0);
-  // for(auto& i : vec){
-  //     i = uniform(0:vec.back());
-  // }
-  // return vec
+inline void
+find_most_weighted_particle_index(const std::vector<Particle> &particles,
+                                  unsigned int &best_particle_index) {
+  double best_particle_weight = 0;
+  for (unsigned int i = 0; i < particles.size(); i++) {
+    if (particles[i].weight_ > best_particle_weight) {
+      best_particle_weight = particles[i].weight_;
+      best_particle_index = i;
+    }
+  }
 }
 
 }; // namespace DreamGMapping

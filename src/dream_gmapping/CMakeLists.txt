@@ -8,7 +8,7 @@ find_package(
   catkin REQUIRED
   COMPONENTS # Needed for ros nodehandle, etc. Note: roscpp is the COMPONENT,
              # and catkin is required.
-             roscpp tf2_ros geometry_msgs)
+             roscpp tf2_ros geometry_msgs nav_msgs)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(PCL REQUIRED)
 

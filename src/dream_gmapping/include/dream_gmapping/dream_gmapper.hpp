@@ -66,6 +66,15 @@ protected:
   std::vector<char> beam_search_kernel_ =
       std::vector<char>(2 * beam_kernel_size_ + 1, 0);
 
+  unsigned int map_size_;
+  unsigned int origin_offset_;
+  ros::Publisher map_pub_;
+  nav_msgs::OccupancyGrid map_;
+
+  // TODO: docstrings
+
+  void initialize_map();
+
   void initialize_motion_set();
 
   // get the most recent odom -> draw a new noise -> go through all particles,
@@ -97,7 +106,27 @@ protected:
                           const PointAccumulator &laser_point_accumulation_map);
 
   void normalize_weights(std::vector<Particle> &particles);
-  void resample_if_needed_and_update_particle_map_and_find_best_pose();
+  /**
+   * @brief Return indices of particles that will be copied to the next round
+   * (so that is resampling)
+   *
+   * @param particles
+   * @return std::vector<unsigned int> Indices of particles in particles that
+   * will be copied to the next round
+   */
+  std::vector<unsigned int>
+  get_resampled_indices(const std::vector<Particle> &particles) const;
+
+  /**
+   * @brief Adding pixelized point cloud to the particle, and free points
+   *
+   * @param p
+   * @param cloud_in_world_frame_vec
+   */
+  void add_cloud_in_world_frame_to_map(
+      Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized);
+  void resample_if_needed_and_update_particle_map_and_find_best_pose(
+      const std::vector<PclCloudPtr> &cloud_in_world_frame_vec);
   void publish_map();
 };
 } // namespace DreamGMapping
