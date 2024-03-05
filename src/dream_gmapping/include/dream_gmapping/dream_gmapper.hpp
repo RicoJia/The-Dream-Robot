@@ -54,8 +54,8 @@ protected:
       tf2_ros::TransformListener(tf_buffer_);
 
   ros::Subscriber wheel_odom_sub_;
-  std::pair<double, double> last_wheel_odom_{0.0, 0.0};
-  std::pair<double, double> current_wheel_odom_{0.0, 0.0};
+  std::pair<double, double> last_wheel_positions_{0.0, 0.0};
+  std::pair<double, double> current_wheel_delta_odom_{0.0, 0.0};
 
   PclCloudPtr last_cloud_{new pcl::PointCloud<pcl::PointXYZ>()};
   std::vector<DreamGMapping::Particle> particles_;

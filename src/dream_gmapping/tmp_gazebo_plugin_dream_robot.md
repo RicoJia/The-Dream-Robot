@@ -116,7 +116,7 @@ for each particle:
 ## Engineering: Test as you go
 ========================================================================
 
-### Milestones
+### Pre-Trip Processing
 1. Record bag from sim: scan, wheel odom (D)
 2. test showing memory management drops to 0, with copy (D)
 3. Base structure slam Node: listening on scan, joint_states
@@ -128,16 +128,26 @@ for each particle:
         - map -> odom
         - odom -> base_link
 
-4. script that publishes a laser scan; encoder reading; 
+4. script that publishes a laser scan; encoder reading; ()
     - See if you can get some more readings
         - Like, you can have a simple shape, like a circle. zero encoder reading
     - find a map
 
-5. Odom node: **published independently at a high frequency**
-    - Simulation: publish ground truth
-    - Rviz: /odom
+### Week of March 5: Testing And Bug Fixes
 
-6. Optional: P(x|z) This will really come from site measurement: 1%(3m), 2%(3-5m), 2.5% (5-12m)
+#### Odom Reorg
+
+odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (wheel dist and icc required)
+
+1. Odom class, DreamOdometer
+    - listen to wheel_pos, outputs transform to /odom->/base_link.
+    - get_2D_screw_displacement()
+2. In DreamGmapper, listen to tf.
+    - angle wrap the delta, store the current wheel odom
+3. In test, spawn an instance of the odom class
+4. In publish map, output tf /map -> /odom
+
+- Optional: P(x|z) This will really come from site measurement: 1%(3m), 2%(3-5m), 2.5% (5-12m)
 
 7. Gitlab CI
 8. docker container update Debian package? github?

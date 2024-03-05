@@ -4,6 +4,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "shared_test_utils.hpp"
 #include "simple_robotics_cpp_utils/performance_utils.hpp"
+#include "std_msgs/Float32MultiArray.h"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
@@ -17,9 +18,15 @@ using DreamGMapping::Particle;
  *
  */
 struct TestableDreamGMapper : public DreamGMapping::DreamGMapper {
+private:
+  ros::Publisher laser_pub_;
+  ros::Publisher odom_pub_;
+
 public:
-  explicit TestableDreamGMapper(ros::NodeHandle nh_) : DreamGMapper(nh_) {
+  explicit TestableDreamGMapper(ros::NodeHandle nh) : DreamGMapper(nh) {
     particle_num_ = PARTICLE_NUM;
+    laser_pub_ = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
+    odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>("odom", 1);
   }
   void normalize_weights(std::vector<Particle> &particles) {
     DreamGMapping::DreamGMapper::normalize_weights(particles);
@@ -36,35 +43,55 @@ public:
   // abstraction"
   // ================================================================================================
   void test_initialization() {
-    ROS_INFO("Testing Initialization");
     EXPECT_EQ(particle_num_, PARTICLE_NUM);
     EXPECT_EQ(wheel_dist_, WHEEL_DIST);
-    // TODO: check if laser scan has been published
-    // Map must be odd sized
+    EXPECT_GT(motion_covariances_(0, 0), 0);
+    EXPECT_GT(motion_covariances_(1, 1), 0);
+    EXPECT_LT(log_prob_beam_not_found_in_kernel_, 0);
+    // map_size_ (in pixels) must be odd
+    EXPECT_EQ(map_size_ % 2, 1);
+    EXPECT_LT(map_.info.origin.position.x, 0);
+    EXPECT_LT(map_.info.origin.position.y, 0);
+    for (unsigned int i = 1; i < motion_set_.size(); ++i) {
+      EXPECT_NE(motion_set_[i], Eigen::Matrix4d::Identity());
+    }
+    ROS_INFO("Testing Initialization Passed");
   }
 
   void test_laser_before_odom() {
     // TODO: organize this code into the initializer
     ros::NodeHandle nh("~");
-    auto laser_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
-    laser_pub.publish(sensor_msgs::LaserScan());
+    laser_pub_.publish(sensor_msgs::LaserScan());
     // sleep in 10ms, which is necessary before spinOnce so subscriber could
     // the callback
     usleep(10000);
     ros::spinOnce();
     // TODO: laser scan should have NOT been initialized
+    EXPECT_EQ(received_first_laser_scan_, false);
+    ROS_INFO("Passed test_laser_before_odom");
   }
 
-  void test_odom() {}
+  void test_move_and_publish_odom(const double &forward_increment) {
+    auto msg = std_msgs::Float32MultiArray();
+    msg.data.clear();
+    msg.data.push_back(0.1);
+    msg.data.push_back(0.1);
+    odom_pub_.publish(msg);
+    // TODO: examine wheel odom
+  }
+
+  // TODO: angle wrap the delta, store the current wheel odom
 
   // One ginormous test
-  void test_laser_scan() {}
+  void test_laser_scan(const double &distance) {}
 };
 
+/**
+ * @brief This class is composed of unit tests and one integration test.
+ *
+ */
 class DreamGMapperTests : public ::testing::Test {
 protected:
-  // TODO
-  //   DreamGMapping::DreamGMapper *dream_gmapper;
   TestableDreamGMapper *dream_gmapper;
   /**
    *here ros::~NodeHandle() would be called, but because the node is not
@@ -81,6 +108,7 @@ protected:
     nh.setParam("resolution", RESOLUTION);
     nh.setParam("beam_noise_sigma_squared", BEAM_NOISE_SIGMA_SQUARED);
     nh.setParam("beam_kernel_size", BEAM_KERNEL_SIZE);
+    nh.setParam("map_size_in_meters", MAP_SIZE_IN_METERS);
     dream_gmapper = new TestableDreamGMapper(nh);
   }
   void TearDown() override { delete dream_gmapper; }
@@ -124,11 +152,25 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
   EXPECT_EQ(number_of_indices_over_10, 10);
 }
 
+/**
+ * @brief This is an integration test that mocks a simple scenario of the robot:
+ * 1. The robot starts off 1m behind a wall. It first receives a laser scan
+ * 2. The robot moves 0.1m forward, and receive a odom message
+ * 3. The robot receives a scan message again
+ * 4. The robot receives moves 0.1m forward again, and receive another odom
+ * message
+ * 5. The robot receives a scan message.
+ */
 TEST_F(DreamGMapperTests, IntegrationTest) {
   dream_gmapper->test_initialization();
   dream_gmapper->test_laser_before_odom();
-  dream_gmapper->test_odom();
-  dream_gmapper->test_laser_scan();
+  double distance = 1.0;
+  constexpr double forward_increment = 0.1;
+  for (int i = 0; i < 2; i++) {
+    dream_gmapper->test_move_and_publish_odom(forward_increment);
+    distance -= forward_increment;
+    dream_gmapper->test_laser_scan(distance);
+  }
 }
 
 // Run all the tests that were declared with TEST()

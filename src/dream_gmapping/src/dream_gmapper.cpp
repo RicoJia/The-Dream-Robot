@@ -71,9 +71,11 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   double d_v_std_dev, d_theta_std_dev;
   nh_.getParam("d_v_std_dev", d_v_std_dev);
   nh_.getParam("d_theta_std_dev", d_theta_std_dev);
-  motion_covariances_ << d_v_std_dev, 0.0, 0.0, d_theta_std_dev;
+  motion_covariances_ << d_v_std_dev * d_v_std_dev, 0.0, 0.0,
+      d_theta_std_dev * d_theta_std_dev;
+  motion_means_ << 0.0, 0.0, 0.0;
   nh_.getParam("resolution", resolution_);
-  nh_.getParam("beam_noise_sigma_squared", beam_noise_variance_);
+  nh_.getParam("beam_noise_variance", beam_noise_variance_);
   nh_.getParam("beam_kernel_size", beam_kernel_size_);
   log_prob_beam_not_found_in_kernel_ =
       -(2 * std::pow(resolution_ * beam_kernel_size_, 2)) /
@@ -97,9 +99,6 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   // with timestamps
   laser_sub_ = nh_.subscribe("scan", 1, &DreamGMapper::laser_scan, this);
   wheel_odom_sub_ = nh_.subscribe("odom", 1, &DreamGMapper::wheel_odom, this);
-
-  motion_covariances_ << 0.2, 0.0, 0.0, 0.2;
-  motion_means_ << 0.0, 0.0, 0.0;
 
   // std::shared_ptr<Rigid2D::>
   for (unsigned int i = 0; i < particle_num_; i++) {
@@ -125,8 +124,10 @@ void DreamGMapper::initialize_map() {
   map_.info.width = map_size_;
   map_.info.height = map_size_;
   // this is the real world pose of (0, 0) of the map.
-  map_.info.origin.position.x = -map_size_ / 2 * resolution_;
-  map_.info.origin.position.y = -map_size_ / 2 * resolution_;
+  map_.info.origin.position.x =
+      -(static_cast<int>(map_size_)) / 2 * resolution_;
+  map_.info.origin.position.y =
+      -(static_cast<int>(map_size_)) / 2 * resolution_;
   map_.info.origin.position.z = 0.0;
   origin_offset_ = map_size_ * map_size_ / 2;
   map_.info.origin.orientation.w = 1.0;
@@ -178,7 +179,7 @@ void DreamGMapper::laser_scan(
   }
 
   auto screw_displacement = SimpleRoboticsCppUtils::get_2D_screw_displacement(
-      current_wheel_odom_, wheel_dist_);
+      current_wheel_delta_odom_, wheel_dist_);
   auto [d_v, d_theta] = screw_displacement;
 
   // If odom, angular distance is not enough, skip.
@@ -240,7 +241,7 @@ void DreamGMapper::laser_scan(
 void DreamGMapper::wheel_odom(
     const std_msgs::Float32MultiArray::ConstPtr &odom_msg) {
   // No mutex is needed as we are using ros::spin()
-  current_wheel_odom_ = {odom_msg->data[0], odom_msg->data[1]};
+  current_wheel_delta_odom_ = {odom_msg->data[0], odom_msg->data[1]};
 }
 
 void DreamGMapper::store_last_scan(

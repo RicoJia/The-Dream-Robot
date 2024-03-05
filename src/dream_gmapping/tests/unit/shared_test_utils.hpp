@@ -11,6 +11,8 @@ constexpr double D_THETA_STD_DEV = 0.1;
 constexpr double RESOLUTION = 0.05;
 constexpr double BEAM_NOISE_SIGMA_SQUARED = 0.1;
 constexpr double BEAM_KERNEL_SIZE = 0.05;
+// unsigned int is not natively supported by ROS
+constexpr int MAP_SIZE_IN_METERS = 1.0;
 
 // Creating a "wall" along the y axis at x=distance
 // The laser scan->frame on laser scan->with a. specified distance
