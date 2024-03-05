@@ -70,21 +70,23 @@ public:
                           count_map_.at(key).total_count_);
   }
 
-  // Origin is at the center of the map
-  // Origin offset is the index of the origin in the 1D array
+  // Origin is at the center of the map, with the bottom left corner of the map
+  // being at (0,0) Origin offset is the index of the origin in the 1D array
   inline void fill_ros_map(std::vector<int8_t> &data,
                            const unsigned int &map_size,
                            const unsigned int &origin_offset) const {
+    data = std::vector<int8_t>(map_size * map_size, -1);
     for (const auto &pair : count_map_) {
       const auto &pixel = pair.second;
       const auto &hit_count = pixel.hit_count_;
       const auto &total_count = pixel.total_count_;
       // add each point to the map TODO. Obstacle is 100, free is 0
-      // full
+      const int index = pixel.y * static_cast<int>(map_size) + pixel.x +
+                        static_cast<int>(origin_offset);
       if ((hit_count << 1) > total_count) {
-        data[pixel.y * map_size + pixel.x + origin_offset] = 100;
+        data.at(index) = 100;
       } else {
-        data[pixel.y * map_size + pixel.x + origin_offset] = 0;
+        data.at(index) = 0;
       }
     }
   }

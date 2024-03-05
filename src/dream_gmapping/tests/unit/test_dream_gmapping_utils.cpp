@@ -1,5 +1,4 @@
-#include "dream_gmapping/dream_gmapping_utils.hpp"
-#include "simple_robotics_cpp_utils/performance_utils.hpp"
+#include "shared_test_utils.hpp"
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -12,7 +11,6 @@ using namespace DreamGMapping;
 // constants
 // 40000 traj points
 uint TRAJ_POINT_NUM = 10 * 10 / (5 * 5) * 1e4;
-uint PARTICLE_NUM = 100;
 uint TRIAL_NUM = 5;
 unsigned int OBSTACLE_COUNT = 20 * 1000;
 
@@ -105,34 +103,6 @@ TEST(ParticleFilterTests, TestParticleMemoryWorstCase) {
 
 /**********************************Utils Tests*********************************/
 
-// Creating a "wall" along the y axis at x=distance
-// The laser scan->frame on laser scan->with a. specified distance
-// Note: the other half of the scan is max_distance
-sensor_msgs::LaserScan::ConstPtr
-create_wall_laser_scan(const double &distance) {
-  boost::shared_ptr<sensor_msgs::LaserScan> scan(new sensor_msgs::LaserScan());
-  constexpr int NUM_POINTS = 360;
-  scan->ranges = std::vector<float>();
-  scan->header.frame_id = "laser";
-  scan->angle_min = 0;
-  scan->angle_max = 2 * M_PI;
-  // Positive is counter clockwise
-  scan->angle_increment = 2 * M_PI / NUM_POINTS;
-  scan->range_min = 0.0;
-  scan->range_max = 100;
-  double angle = scan->range_min;
-  for (unsigned int i = 0; i < NUM_POINTS; i++) {
-    if (std::abs(std::cos(angle)) < std::numeric_limits<float>::epsilon()) {
-      scan->ranges[i] = scan->range_max;
-    } else if (M_PI / 2.0 <= angle && angle <= M_PI * 3.0 / 2.0) {
-      scan->ranges.push_back(scan->range_max);
-    } else {
-      scan->ranges.push_back(distance / std::cos(angle));
-    }
-    angle += scan->angle_increment;
-  }
-  return sensor_msgs::LaserScan::ConstPtr(scan);
-}
 TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> prev_cloud(
       new pcl::PointCloud<pcl::PointXYZ>());
@@ -209,16 +179,18 @@ TEST(DreamGMapperUtilsTests, PointAccumulatorTest) {
   EXPECT_EQ(total_counts2, 0);
 
   pa.add_point(1, 0, true);
+  pa.add_point(1, 1, true);
   pa.add_point(1, -1, false);
   pa.add_point(-2, -2, true);
   std::vector<int8_t> data;
+  // map_size has been made sure to be odd
   // so [-2, 1] along x and y directions
-  unsigned int map_size = 4, origin_offset = map_size * map_size / 2;
+  unsigned int map_size = 5, origin_offset = map_size * map_size / 2;
   pa.fill_ros_map(data, map_size, origin_offset);
-  EXPECT_EQ(data[0], 100);  // (-2,-2)
-  EXPECT_EQ(data[10], 0);   // (0,0)
-  EXPECT_EQ(data[7], 0);    // (1,-1)
-  EXPECT_EQ(data[14], 100); // (1,1)
+  EXPECT_EQ(data.at(0), 100);  // (-2,-2)
+  EXPECT_EQ(data.at(12), 0);   // (0,0)
+  EXPECT_EQ(data.at(8), 0);    // (1,-1)
+  EXPECT_EQ(data.at(18), 100); // (1,1)
 }
 
 TEST(DreamGMapperUtilsTests, FindMostWeightedParticleIndex) {

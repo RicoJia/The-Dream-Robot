@@ -81,6 +81,12 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   double map_size_in_meters;
   nh_.getParam("map_size_in_meters", map_size_in_meters);
   map_size_ = static_cast<unsigned int>(map_size_in_meters / resolution_);
+  if (map_size_ % 2 == 0) {
+    map_size_++;
+    ROS_WARN_STREAM(
+        "To have an odd number of cells in the map, map size now is "
+        << map_size_ * resolution_);
+  }
   map_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("map", 1);
   initialize_map();
 
@@ -113,6 +119,7 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
 DreamGMapper::~DreamGMapper() = default;
 
 void DreamGMapper::initialize_map() {
+  // we know map_size_ is an odd number
   map_.header.frame_id = "map";
   map_.info.resolution = resolution_;
   map_.info.width = map_size_;
@@ -441,7 +448,6 @@ void DreamGMapper::
 void DreamGMapper::publish_map() {
   // get the best pose
   const auto &best_particle = particles_.at(best_particle_index_);
-  map_.data = std::vector<int8_t>(map_size_ * map_size_, -1);
   map_.header.stamp = ros::Time::now();
   best_particle.laser_point_accumulation_map_.fill_ros_map(map_.data, map_size_,
                                                            origin_offset_);

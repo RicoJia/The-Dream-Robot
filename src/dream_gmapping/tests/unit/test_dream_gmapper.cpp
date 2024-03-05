@@ -2,6 +2,7 @@
 #include "dream_gmapping/dream_gmapping_utils.hpp"
 #include "ros/node_handle.h"
 #include "sensor_msgs/LaserScan.h"
+#include "shared_test_utils.hpp"
 #include "simple_robotics_cpp_utils/performance_utils.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
@@ -9,9 +10,7 @@
 #include <unistd.h>
 #include <unordered_map>
 
-constexpr double WHEEL_DIST = 1;
 using DreamGMapping::Particle;
-const int PARTICLE_NUM = 1000;
 
 /**
  * @brief : we are testing protected functions using a wrapper class
@@ -38,9 +37,10 @@ public:
   // ================================================================================================
   void test_initialization() {
     ROS_INFO("Testing Initialization");
-    // Note: in the dream_gmapper module, we initialized a private node handle
-    // with /dream_gmapping
+    EXPECT_EQ(particle_num_, PARTICLE_NUM);
+    EXPECT_EQ(wheel_dist_, WHEEL_DIST);
     // TODO: check if laser scan has been published
+    // Map must be odd sized
   }
 
   void test_laser_before_odom() {
@@ -75,7 +75,12 @@ protected:
    */
   void SetUp() override {
     ros::NodeHandle nh("~");
-    ros::param::set("wheel_dist", WHEEL_DIST);
+    nh.setParam("wheel_dist", WHEEL_DIST);
+    nh.setParam("d_v_std_dev", D_V_STD_DEV);
+    nh.setParam("d_theta_std_dev", D_THETA_STD_DEV);
+    nh.setParam("resolution", RESOLUTION);
+    nh.setParam("beam_noise_sigma_squared", BEAM_NOISE_SIGMA_SQUARED);
+    nh.setParam("beam_kernel_size", BEAM_KERNEL_SIZE);
     dream_gmapper = new TestableDreamGMapper(nh);
   }
   void TearDown() override { delete dream_gmapper; }
