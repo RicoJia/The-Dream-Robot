@@ -8,7 +8,6 @@
 #include <ros/ros.h>
 #include <simple_robotics_cpp_utils/math_utils.hpp>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
-#include <std_msgs/Float32MultiArray.h>
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
 #include <vector>
@@ -24,7 +23,6 @@ public:
   */
   void
   laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
-  void wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg);
 
 protected:
   // configurable parameters
@@ -33,7 +31,6 @@ protected:
   std::string odom_frame_ = "odom";
   double map_update_interval_ = 0.1; // 10 hz
   double max_range_;
-  double wheel_dist_;
   int particle_num_ = 50;
   double angular_active_threshold_ = M_PI / 6.0;
   double translation_active_threshold_ = 0.2;
@@ -53,7 +50,6 @@ protected:
   tf2_ros::TransformListener tf_listener_ =
       tf2_ros::TransformListener(tf_buffer_);
 
-  ros::Subscriber wheel_odom_sub_;
   std::pair<double, double> last_wheel_positions_{0.0, 0.0};
   std::pair<double, double> current_wheel_delta_odom_{0.0, 0.0};
 

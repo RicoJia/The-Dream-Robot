@@ -139,13 +139,15 @@ for each particle:
 
 odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (wheel dist and icc required)
 
-1. Odom class, DreamOdometer
+1. Odom class, DreamOdometer (D)
     - listen to wheel_pos, outputs transform to /odom->/base_link.
     - get_2D_screw_displacement()
 2. In DreamGmapper, listen to tf.
     - angle wrap the delta, store the current wheel odom
 3. In test, spawn an instance of the odom class
 4. In publish map, output tf /map -> /odom
+
+5. screw_displacement_2d_to_body_frame_transform() TODO: prob has a bug
 
 - Optional: P(x|z) This will really come from site measurement: 1%(3m), 2%(3-5m), 2.5% (5-12m)
 

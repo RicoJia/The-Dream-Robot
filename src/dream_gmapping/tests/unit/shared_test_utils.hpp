@@ -4,6 +4,7 @@
 #include "simple_robotics_cpp_utils/performance_utils.hpp"
 
 constexpr double WHEEL_DIST = 1;
+constexpr double WHEEL_DIAMETER = 0.3;
 constexpr int PARTICLE_NUM = 1000;
 constexpr int SMALL_PARTICLE_NUM = 10;
 constexpr double D_V_STD_DEV = 0.1;

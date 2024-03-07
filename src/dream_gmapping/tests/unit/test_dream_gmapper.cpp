@@ -1,5 +1,8 @@
 #include "dream_gmapping/dream_gmapper.hpp"
 #include "dream_gmapping/dream_gmapping_utils.hpp"
+#include "dream_gmapping/dream_odometer.hpp"
+#include "ros/duration.h"
+#include "ros/init.h"
 #include "ros/node_handle.h"
 #include "sensor_msgs/LaserScan.h"
 #include "shared_test_utils.hpp"
@@ -10,12 +13,34 @@
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
 #include <unistd.h>
 #include <unordered_map>
+#include <utility>
 
 using DreamGMapping::Particle;
+/**
+ * -----------------------------------------------------------------
+ * Test Structs and Suite
+ * -----------------------------------------------------------------
+ */
+struct TestableDreamOdometer : public DreamGMapping::DreamOdometer {
+  ros::Publisher odom_pub_;
+
+public:
+  explicit TestableDreamOdometer(ros::NodeHandle nh) : DreamOdometer(nh) {
+    odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>("odom", 1);
+  }
+
+  void publish_odom(const std::pair<double, double> &wheel_pos_pair) {
+    std_msgs::Float32MultiArray wheel_pos;
+    wheel_pos.data.push_back(wheel_pos_pair.first);
+    wheel_pos.data.push_back(wheel_pos_pair.second);
+    odom_pub_.publish(wheel_pos);
+  }
+
+  Eigen::Matrix4d get_tf_matrix() const { return Eigen::Matrix4d(tf_matrix_); }
+};
 
 /**
  * @brief : we are testing protected functions using a wrapper class
- *
  */
 struct TestableDreamGMapper : public DreamGMapping::DreamGMapper {
 private:
@@ -26,7 +51,6 @@ public:
   explicit TestableDreamGMapper(ros::NodeHandle nh) : DreamGMapper(nh) {
     particle_num_ = PARTICLE_NUM;
     laser_pub_ = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
-    odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>("odom", 1);
   }
   void normalize_weights(std::vector<Particle> &particles) {
     DreamGMapping::DreamGMapper::normalize_weights(particles);
@@ -35,16 +59,8 @@ public:
   get_resampled_indices(const std::vector<Particle> &particles) const {
     return DreamGMapping::DreamGMapper::get_resampled_indices(particles);
   }
-
-  // ================================================================================================
-  // Integration Tests. They are called inside one single GTest Function IN
-  // SEQUENCE One flaw in these tests is we do topic publication inside these
-  // functions - we do this for visual convenience technically, that's a "leaky
-  // abstraction"
-  // ================================================================================================
   void test_initialization() {
     EXPECT_EQ(particle_num_, PARTICLE_NUM);
-    EXPECT_EQ(wheel_dist_, WHEEL_DIST);
     EXPECT_GT(motion_covariances_(0, 0), 0);
     EXPECT_GT(motion_covariances_(1, 1), 0);
     EXPECT_LT(log_prob_beam_not_found_in_kernel_, 0);
@@ -57,7 +73,6 @@ public:
     }
     ROS_INFO("Testing Initialization Passed");
   }
-
   void test_laser_before_odom() {
     // TODO: organize this code into the initializer
     ros::NodeHandle nh("~");
@@ -76,11 +91,9 @@ public:
     msg.data.clear();
     msg.data.push_back(0.1);
     msg.data.push_back(0.1);
-    odom_pub_.publish(msg);
+    // odom_pub_.publish(msg);
     // TODO: examine wheel odom
   }
-
-  // TODO: angle wrap the delta, store the current wheel odom
 
   // One ginormous test
   void test_laser_scan(const double &distance) {}
@@ -93,6 +106,7 @@ public:
 class DreamGMapperTests : public ::testing::Test {
 protected:
   TestableDreamGMapper *dream_gmapper;
+  TestableDreamOdometer *dream_odometer;
   /**
    *here ros::~NodeHandle() would be called, but because the node is not
     started by the node handle,
@@ -103,6 +117,7 @@ protected:
   void SetUp() override {
     ros::NodeHandle nh("~");
     nh.setParam("wheel_dist", WHEEL_DIST);
+    nh.setParam("wheel_diameter", WHEEL_DIAMETER);
     nh.setParam("d_v_std_dev", D_V_STD_DEV);
     nh.setParam("d_theta_std_dev", D_THETA_STD_DEV);
     nh.setParam("resolution", RESOLUTION);
@@ -110,10 +125,50 @@ protected:
     nh.setParam("beam_kernel_size", BEAM_KERNEL_SIZE);
     nh.setParam("map_size_in_meters", MAP_SIZE_IN_METERS);
     dream_gmapper = new TestableDreamGMapper(nh);
+    dream_odometer = new TestableDreamOdometer(nh);
   }
   void TearDown() override { delete dream_gmapper; }
 };
 
+/**
+ * -----------------------------------------------------------------
+ * Odom Test
+ * -----------------------------------------------------------------
+ */
+
+TEST_F(DreamGMapperTests, TestableDreamOdometer) {
+  // go straight by WHEEL_DIAMETER * pi /4
+  std::pair<double, double> current_wheel_pos = {0.0, 0.0};
+  current_wheel_pos.first += M_PI / 2.0;
+  current_wheel_pos.second += -M_PI / 2.0;
+  dream_odometer->publish_odom(current_wheel_pos);
+  ros::Duration(0.1).sleep();
+  ros::spinOnce();
+  auto odom_base_link = dream_odometer->get_tf_matrix();
+  Eigen::Matrix4d groud_truth = Eigen::Matrix4d::Identity();
+  groud_truth(0, 3) = WHEEL_DIAMETER * M_PI / 4.0;
+  EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
+
+  // turn right on the spot
+  current_wheel_pos.first += M_PI / 2.0;
+  current_wheel_pos.second += M_PI / 2.0;
+  dream_odometer->publish_odom(current_wheel_pos);
+  ros::Duration(0.1).sleep();
+  ros::spinOnce();
+  odom_base_link = dream_odometer->get_tf_matrix();
+  double theta = -WHEEL_DIAMETER / WHEEL_DIST * M_PI / 2.0;
+  Eigen::AngleAxisd rotationZ(theta, Eigen::Vector3d(0, 0, 1));
+  groud_truth.block<3, 3>(0, 0) = rotationZ.toRotationMatrix();
+  std::cout << "groud_truth: " << std::endl << groud_truth << std::endl;
+  std::cout << "odom_base_link: " << std::endl << odom_base_link << std::endl;
+  EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
+}
+
+/**
+ * -----------------------------------------------------------------
+ * DreamGMapper Test
+ * -----------------------------------------------------------------
+ */
 TEST_F(DreamGMapperTests, TestParticleNormalize) {
   std::vector<Particle> particles(PARTICLE_NUM, Particle());
   for (auto &p : particles) {
@@ -134,9 +189,6 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
   auto indices = dream_gmapper->get_resampled_indices(particles);
   std::unordered_map<unsigned int, unsigned int> index_map;
   for (const auto &i : indices) {
-    // if (index_map.find(i) == index_map.end())
-    //     index_map[i] = 1;
-    // else
     index_map[i]++;
   }
 
@@ -145,15 +197,23 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
     if (pair.second > 10) {
       number_of_indices_over_10++;
       EXPECT_EQ(pair.first % 100, 0);
-      std::cout << "Indices with counts over 10: " << pair.first
-                << "count: " << pair.second << std::endl;
+    //   std::cout << "Indices with counts over 10: " << pair.first
+    //             << "count: " << pair.second << std::endl;
     }
   }
   EXPECT_EQ(number_of_indices_over_10, 10);
 }
 
+  // ================================================================================================
+  // Integration Tests. They are called inside one single GTest Function IN
+  // SEQUENCE One flaw in these tests is we do topic publication inside these
+  // functions - we do this for visual convenience technically, that's a "leaky
+  // abstraction"
+  // ================================================================================================
+
 /**
- * @brief This is an integration test that mocks a simple scenario of the robot:
+ * @brief This is an integration test that mocks a simple scenario of the
+ robot:
  * 1. The robot starts off 1m behind a wall. It first receives a laser scan
  * 2. The robot moves 0.1m forward, and receive a odom message
  * 3. The robot receives a scan message again

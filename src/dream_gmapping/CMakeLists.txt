@@ -19,8 +19,11 @@ catkin_package()
 # Build ##
 # ##############################################################################
 
-file(GLOB src_files "src/*.cpp")
+file(GLOB src_files "src/main.cpp" "src/dream_gmapper.cpp")
 add_executable(${PROJECT_NAME} ${src_files})
+
+file(GLOB odom_src_files "src/odom_main.cpp")
+add_executable(${PROJECT_NAME}_odometer ${odom_src_files})
 include_directories(
   include/
   ${catkin_INCLUDE_DIRS}
@@ -30,7 +33,8 @@ include_directories(
   ${PCL_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen
                       ${PCL_LIBRARIES})
-
+target_link_libraries(${PROJECT_NAME}_odometer ${catkin_LIBRARIES}
+                      Eigen3::Eigen ${PCL_LIBRARIES})
 # Unit Tests Then one can run these tests using catkin_make run_tests or
 # catkin_make run_tests --pkg <PKG_NAME> file(GLOB test_src_files
 # "tests/unit/*.cpp")

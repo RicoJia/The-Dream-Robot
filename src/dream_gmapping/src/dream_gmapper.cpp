@@ -64,7 +64,6 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
 
   nh_.getParam("max_range", max_range_);
   nh_.getParam("particle_num", particle_num_);
-  nh_.getParam("wheel_dist", wheel_dist_);
   nh_.getParam("angular_active_threshold", angular_active_threshold_);
   nh_.getParam("translation_active_threshold", translation_active_threshold_);
 
@@ -98,7 +97,6 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   // we are not using TimeSynchronizer because tf2 already provides buffering
   // with timestamps
   laser_sub_ = nh_.subscribe("scan", 1, &DreamGMapper::laser_scan, this);
-  wheel_odom_sub_ = nh_.subscribe("odom", 1, &DreamGMapper::wheel_odom, this);
 
   // std::shared_ptr<Rigid2D::>
   for (unsigned int i = 0; i < particle_num_; i++) {
@@ -178,8 +176,9 @@ void DreamGMapper::laser_scan(
     return;
   }
 
+  // TODO: to demolish
   auto screw_displacement = SimpleRoboticsCppUtils::get_2D_screw_displacement(
-      current_wheel_delta_odom_, wheel_dist_);
+      current_wheel_delta_odom_, 0);
   auto [d_v, d_theta] = screw_displacement;
 
   // If odom, angular distance is not enough, skip.
@@ -235,13 +234,6 @@ void DreamGMapper::laser_scan(
       cloud_in_world_frame_vec);
   publish_map();
   store_last_scan(cloud);
-}
-
-// [left, right], the wheel positions are [0, 2pi]
-void DreamGMapper::wheel_odom(
-    const std_msgs::Float32MultiArray::ConstPtr &odom_msg) {
-  // No mutex is needed as we are using ros::spin()
-  current_wheel_delta_odom_ = {odom_msg->data[0], odom_msg->data[1]};
 }
 
 void DreamGMapper::store_last_scan(
