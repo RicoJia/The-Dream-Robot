@@ -139,13 +139,15 @@ protected:
 TEST_F(DreamGMapperTests, TestableDreamOdometer) {
   // go straight by WHEEL_DIAMETER * pi /4
   std::pair<double, double> current_wheel_pos = {0.0, 0.0};
+  Eigen::Matrix4d groud_truth = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d odom_base_link;
+
   current_wheel_pos.first += M_PI / 2.0;
   current_wheel_pos.second += -M_PI / 2.0;
   dream_odometer->publish_odom(current_wheel_pos);
   ros::Duration(0.1).sleep();
   ros::spinOnce();
-  auto odom_base_link = dream_odometer->get_tf_matrix();
-  Eigen::Matrix4d groud_truth = Eigen::Matrix4d::Identity();
+  odom_base_link = dream_odometer->get_tf_matrix();
   groud_truth(0, 3) = WHEEL_DIAMETER * M_PI / 4.0;
   EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
 
@@ -159,6 +161,25 @@ TEST_F(DreamGMapperTests, TestableDreamOdometer) {
   double theta = -WHEEL_DIAMETER / WHEEL_DIST * M_PI / 2.0;
   Eigen::AngleAxisd rotationZ(theta, Eigen::Vector3d(0, 0, 1));
   groud_truth.block<3, 3>(0, 0) = rotationZ.toRotationMatrix();
+  std::cout << "groud_truth: " << std::endl << groud_truth << std::endl;
+  std::cout << "odom_base_link: " << std::endl << odom_base_link << std::endl;
+  EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
+
+  // turn by 2pi in n segments with the left wheel being still. So the robot
+  // will come back to its previous pose
+  const double WHEEL_RADIUS = WHEEL_DIAMETER / 2.0;
+  const int N_SEGMENT = std::ceil(WHEEL_DIST * 2 / WHEEL_RADIUS);
+  const double right_wheel_delta =
+      (2.0 * M_PI * WHEEL_DIST / N_SEGMENT) / WHEEL_RADIUS;
+  std::cout << "N_SEGMENT: " << N_SEGMENT
+            << ", right wheel delta: " << right_wheel_delta << std::endl;
+  for (int i = 0; i < N_SEGMENT; ++i) {
+    current_wheel_pos.second += right_wheel_delta;
+    dream_odometer->publish_odom(current_wheel_pos);
+    ros::Duration(0.1).sleep();
+    ros::spinOnce();
+  }
+  odom_base_link = dream_odometer->get_tf_matrix();
   std::cout << "groud_truth: " << std::endl << groud_truth << std::endl;
   std::cout << "odom_base_link: " << std::endl << odom_base_link << std::endl;
   EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
@@ -197,19 +218,19 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
     if (pair.second > 10) {
       number_of_indices_over_10++;
       EXPECT_EQ(pair.first % 100, 0);
-    //   std::cout << "Indices with counts over 10: " << pair.first
-    //             << "count: " << pair.second << std::endl;
+      //   std::cout << "Indices with counts over 10: " << pair.first
+      //             << "count: " << pair.second << std::endl;
     }
   }
   EXPECT_EQ(number_of_indices_over_10, 10);
 }
 
-  // ================================================================================================
-  // Integration Tests. They are called inside one single GTest Function IN
-  // SEQUENCE One flaw in these tests is we do topic publication inside these
-  // functions - we do this for visual convenience technically, that's a "leaky
-  // abstraction"
-  // ================================================================================================
+// ================================================================================================
+// Integration Tests. They are called inside one single GTest Function IN
+// SEQUENCE One flaw in these tests is we do topic publication inside these
+// functions - we do this for visual convenience technically, that's a "leaky
+// abstraction"
+// ================================================================================================
 
 /**
  * @brief This is an integration test that mocks a simple scenario of the

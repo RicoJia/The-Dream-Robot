@@ -28,22 +28,6 @@ protected:
 
   // [left, right], the wheel positions are [0, 2pi]
   void wheel_odom(const std_msgs::Float32MultiArray::ConstPtr &odom_msg) {
-    // find delta of wheels, angle wrap; apply icc; publish tf
-    // TODO
-    std::cout << "last left wheel position: " << last_wheel_positions_.first
-              << std::endl;
-    std::cout << "current left wheel position: " << odom_msg->data[0]
-              << std::endl;
-    std::cout << "odom: " << (odom_msg->data[0] - last_wheel_positions_.first)
-              << std::endl;
-    // TODO
-    std::cout << "last right wheel position: " << last_wheel_positions_.second
-              << std::endl;
-    std::cout << "current right wheel position: " << odom_msg->data[1]
-              << std::endl;
-    std::cout << "odom: " << -(odom_msg->data[1] - last_wheel_positions_.second)
-              << std::endl;
-    // TODO: find_smaller_delta(angle1, angle2);
     auto screw_displacement = get_2D_screw_displacement(
         {find_smaller_delta(last_wheel_positions_.first, odom_msg->data[0]) *
              wheel_radius_,
@@ -52,16 +36,12 @@ protected:
          -find_smaller_delta(last_wheel_positions_.second, odom_msg->data[1]) *
              wheel_radius_},
         wheel_dist_);
-    // TODO
-    std::cout << "wheel_odom: " << screw_displacement.first << ", "
-              << screw_displacement.second << std::endl;
     auto body_frame_tf =
         screw_displacement_2d_to_body_frame_transform(screw_displacement);
     tf_matrix_ = tf_matrix_ * body_frame_tf;
     tf_msg_.transform =
         tf2::eigenToTransform(Eigen::Affine3d(tf_matrix_)).transform;
     br_.sendTransform(tf_msg_);
-    // No mutex is needed as we are using ros::spin()
     // flipping right wheel because 2D screw displacement function assumes CW as
     // positive
     last_wheel_positions_ = {odom_msg->data[0], odom_msg->data[1]};
