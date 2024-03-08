@@ -48,6 +48,7 @@
 #include <ros/node_handle.h>
 #include <ros/ros.h>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
+#include <tf2_eigen/tf2_eigen.h>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -132,7 +133,6 @@ void DreamGMapper::initialize_map() {
 }
 
 void DreamGMapper::initialize_motion_set() {
-  // TODO - to move
   motion_set_ = std::vector<Eigen::Matrix4d>{
       Eigen::Matrix4d::Identity(),
       Eigen::Matrix4d::Identity(), // x forward
@@ -150,7 +150,6 @@ void DreamGMapper::initialize_motion_set() {
   motion_set_[4](1, 3) -= resolution_;
 }
 
-// TODO test
 void DreamGMapper::laser_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
   // - wait for the first scan message, get tf;
@@ -162,6 +161,7 @@ void DreamGMapper::laser_scan(
     auto received_time = (ros::Time(0) - odom_to_base.header.stamp).toSec();
     if (received_time > 1.0) {
       ROS_WARN_STREAM("Odom to base transform was received " << received_time);
+      return;
     }
   } catch (tf2::TransformException &e) {
     ROS_WARN("%s", e.what());
@@ -176,14 +176,21 @@ void DreamGMapper::laser_scan(
     return;
   }
 
-  // TODO: to demolish
-  auto screw_displacement = SimpleRoboticsCppUtils::get_2D_screw_displacement(
-      current_wheel_delta_odom_, 0);
-  auto [d_v, d_theta] = screw_displacement;
+  // odom_to_base to eigen -> calculate T_delta -> store in last_odom_pose
+  Eigen::Affine3d transform_eigen =
+      tf2::transformToEigen(odom_to_base.transform);
+  Eigen::Matrix4d current_odom_pose = transform_eigen.matrix();
+  auto T_delta = last_odom_pose_.inverse() * current_odom_pose;
+  last_odom_pose_ = current_odom_pose;
+  // T_delta -> delta_translation, delta_rotation
+  Eigen::Vector3d delta_translation_vec = T_delta.block<3, 1>(0, 3);
+  double delta_translation = delta_translation_vec.norm();
+  double delta_theta =
+      atan2(T_delta(1, 0), T_delta(0, 0)); // Rotation around Z-axis
 
   // If odom, angular distance is not enough, skip.
-  if (d_v < translation_active_threshold_ &&
-      d_theta < angular_active_threshold_)
+  if (delta_translation < translation_active_threshold_ &&
+      delta_theta < angular_active_threshold_)
     return;
 
   PclCloudPtr cloud(new pcl::PointCloud<pcl::PointXYZ>());
@@ -195,8 +202,8 @@ void DreamGMapper::laser_scan(
 
   // - icp: scan match, get initial guess
   Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
-  bool icp_converge = DreamGMapping::icp_2d(last_cloud_, cloud,
-                                            screw_displacement, T_icp_output);
+  bool icp_converge =
+      DreamGMapping::icp_2d(last_cloud_, cloud, T_delta, T_icp_output);
 
   std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
   cloud_in_world_frame_vec.reserve(particle_num_);
@@ -212,15 +219,12 @@ void DreamGMapper::laser_scan(
       auto [s, m, cloud_in_world_frame] =
           optimizeAfterIcp(particle, T_icp_output, scan_msg);
     } else {
-      // draw from motion model
-      auto [s, m] = SimpleRoboticsCppUtils::draw_from_icc(
-          *(particle.pose_traj_.back()), screw_displacement,
-          motion_covariances_);
-      score = s;
-      new_pose_estimate = m;
+      // Update with odom
+      score = particle.weight_;
+      new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
+          particle.pose_traj_.back()->to_se3() * T_delta);
       DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
                                                     cloud_in_world_frame);
-      // TODO: pixelize
       DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
     }
     // store score, and the new pose now, new point cloud in world frame
@@ -244,7 +248,6 @@ void DreamGMapper::store_last_scan(PclCloudPtr to_update) {
   last_cloud_ = to_update;
 }
 
-// TODO test 2
 /**
  * @brief One difference from the original RBPF SLAM paper is that a particle's
  score is not sum_(Probability(pose_sample) * Probability(scan_of_pose_sample))
@@ -290,7 +293,6 @@ DreamGMapper::optimizeAfterIcp(const DreamGMapping::Particle &particle,
   return std::make_tuple(best_pose, best_score, best_cloud);
 }
 
-// TODO test 1
 double DreamGMapper::observation_model_score(
     PclCloudPtr cloud_in_world_frame_pixelized, ScanMsgPtr scan_msg,
     const Pose2D &pose_estimate,
@@ -319,8 +321,6 @@ double DreamGMapper::observation_model_score(
            i < beam_search_kernel_.size();
            i++) {
         const char &yy = beam_search_kernel_[i];
-        // TODO to remove after testing
-        std::cout << "xx: " << xx << "yy: " << yy << std::endl;
         // find p_hit and p_free right in front of it.
         auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
         auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
@@ -436,7 +436,6 @@ void DreamGMapper::
                  [](const Particle &particle) { return particle.weight_; });
 }
 
-// TODO
 // Our map is a fixed size one, sizing-up is currently not supported
 void DreamGMapper::publish_map() {
   // get the best pose

@@ -149,7 +149,7 @@ inline bool fill_point_cloud(
 
 // screw_displacement is [d_v, d_w]
 inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
-                   const std::pair<double, double> &screw_displacement,
+                   const Eigen::Matrix4d &T_init_guess_double,
                    Eigen::Matrix4d &T_icp_output) {
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   // pcl will try to align source to target. That's counter to our motion
@@ -162,12 +162,8 @@ inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
   icp.setEuclideanFitnessEpsilon(
       1e-5); // A smaller distance threshold for stopping
   pcl::PointCloud<pcl::PointXYZ> output;
-  // TODO: get Transform from screw_displacement
-  auto T_init_guess =
-      SimpleRoboticsCppUtils::screw_displacement_2d_to_body_frame_transform(
-          screw_displacement)
-          .cast<float>();
   // Documentation on T_init_guess being float typed sucked - I haven't seen it
+  auto T_init_guess = T_init_guess_double.cast<float>();
   icp.align(output, T_init_guess);
 
   if (icp.hasConverged()) {

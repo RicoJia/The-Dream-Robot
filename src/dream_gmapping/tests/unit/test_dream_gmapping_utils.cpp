@@ -120,9 +120,12 @@ TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
       assert(filled_success && "Point Cloud Filling Failure");
 
       Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
-      bool converge =
-          DreamGMapping::icp_2d(prev_cloud, next_cloud,
-                                std::pair<double, double>(0, 0), T_icp_output);
+      auto T_init_guess =
+          SimpleRoboticsCppUtils::screw_displacement_2d_to_body_frame_transform(
+              std::pair<double, double>(0, 0));
+
+      bool converge = DreamGMapping::icp_2d(prev_cloud, next_cloud,
+                                            T_init_guess, T_icp_output);
       prev_cloud = next_cloud;
     }
   }

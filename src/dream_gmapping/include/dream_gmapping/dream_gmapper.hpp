@@ -50,8 +50,8 @@ protected:
   tf2_ros::TransformListener tf_listener_ =
       tf2_ros::TransformListener(tf_buffer_);
 
-  std::pair<double, double> last_wheel_positions_{0.0, 0.0};
-  std::pair<double, double> current_wheel_delta_odom_{0.0, 0.0};
+  // TODO: to demolish
+  Eigen::Matrix4d last_odom_pose_ = Eigen::Matrix4d::Identity();
 
   PclCloudPtr last_cloud_{new pcl::PointCloud<pcl::PointXYZ>()};
   std::vector<DreamGMapping::Particle> particles_;

@@ -39,6 +39,7 @@ protected:
     auto body_frame_tf =
         screw_displacement_2d_to_body_frame_transform(screw_displacement);
     tf_matrix_ = tf_matrix_ * body_frame_tf;
+    tf_msg_.header.stamp = ros::Time::now();
     tf_msg_.transform =
         tf2::eigenToTransform(Eigen::Affine3d(tf_matrix_)).transform;
     br_.sendTransform(tf_msg_);
@@ -57,7 +58,6 @@ public:
     nh_.getParam("base_frame", base_frame_);
     nh_.getParam("odom_frame", odom_frame_);
 
-    tf_msg_.header.stamp = ros::Time::now();
     tf_msg_.header.frame_id = odom_frame_;
     tf_msg_.child_frame_id = base_frame_;
   }
