@@ -12,12 +12,12 @@
 
 ### Scan Match Week of Feb 24
 1. scan_match_success, icp_corrected = icp(prev_odom, last_scan, current_scan, T_init)
-    - TODO: how does PCL do it, expensive? (D)
-    - TODO: get_point_cloud_in_world_frame(robot_pose, scan_msg);, test (D)
+    - how does PCL do it, expensive? (D)
+    - get_point_cloud_in_world_frame(robot_pose, scan_msg);, test (D)
 2. If scan_match_fail:
     for each particle:
         1. draw from motion (D)
-        2. update score and motion pose (TODO)
+        2. update score and motion pose ()
 3. if scan_match successful
     for each particle
         1. new_pose *= icp
@@ -33,7 +33,7 @@ for each particle:
 
 #### update_particle_pose
 1. sample K. for each K particle_score = score(k_pose, laserscan)
-    1. for each pose in kernel K: (TODO: pixelize point cloud?)
+    1. for each pose in kernel K: (pixelize point cloud?)
         - Do I need the naive world frame one? We want to store pc in pixels.  - transform -> world pixel - world -> transform (center)
     2. `score = motion model score * likelihood comparison (laser point needs to be transformed to pixels already.).`. Likelihood comparison: 2000 points `(2000*k look ups + if);` See scanmatcher.h, score. "Fullness". For each beam: 
         1. compare ip_free and if_hit at the same time. 
@@ -102,7 +102,7 @@ for each particle:
     2. track down its nodes, project scans on to it.
     3. Count how many times each ray has been casted
 
-- does this new sequence correspond with the paper? bmapping? gmapping? TODO
+- does this new sequence correspond with the paper? bmapping? gmapping? 
     - in paper: updating a particle's pose involves sampling K poses, generate a new distribution from it, then draw from the distribution again. This is equivalent to "updating with the scan match"
     - From Bmapping, 
         - We do a global scan match. That's good enough as an estimate.
@@ -127,7 +127,6 @@ for each particle:
     - TF:
         - map -> odom
         - odom -> base_link
-
 4. script that publishes a laser scan; encoder reading; ()
     - See if you can get some more readings
         - Like, you can have a simple shape, like a circle. zero encoder reading
@@ -136,18 +135,24 @@ for each particle:
 ### Week of March 5: Testing And Bug Fixes
 
 #### Odom Reorg
-
 odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (wheel dist and icc required)
 
 1. Odom class, DreamOdometer (D)
     - listen to wheel_pos, outputs transform to /odom->/base_link.
     - get_2D_screw_displacement()
 2. In DreamGmapper, listen to tf.
-    - angle wrap the delta, store the current wheel odom
+    - angle wrap the delta, update the last odom with the current odom
+    - if delta_odom has passed threshold, we need continue with laser scan
 3. In test, spawn an instance of the odom class
 4. In publish map, output tf /map -> /odom
+5. screw_displacement_2d_to_body_frame_transform()
 
-5. screw_displacement_2d_to_body_frame_transform() TODO: prob has a bug
+### Optional Improvement 1: Motion Model Reorg
+
+1. Add noise to T directly, using something similar to `drawFromMotion` That'd be a motion model; Apply that to each particle
+2. Do ICP, get T_icp, appluy that to each particle 
+3. Optimize: larger pose_estimates kernel. and maybe a larger beam scan kernel?
+    - motion model is needed, especially with random noise. That gives more randomness to help counter balance odometer drift, and icp inaccuracies
 
 - Optional: P(x|z) This will really come from site measurement: 1%(3m), 2%(3-5m), 2.5% (5-12m)
 

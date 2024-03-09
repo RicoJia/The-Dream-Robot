@@ -4,12 +4,15 @@
 #include "ros/duration.h"
 #include "ros/init.h"
 #include "ros/node_handle.h"
+#include "ros/rate.h"
 #include "sensor_msgs/LaserScan.h"
 #include "shared_test_utils.hpp"
 #include "simple_robotics_cpp_utils/performance_utils.hpp"
 #include "std_msgs/Float32MultiArray.h"
 #include <cmath>
 #include <gtest/gtest.h>
+#include <ostream>
+#include <simple_robotics_cpp_utils/math_utils.hpp>
 #include <simple_robotics_cpp_utils/rigid2d.hpp>
 #include <unistd.h>
 #include <unordered_map>
@@ -23,10 +26,23 @@ using DreamGMapping::Particle;
  */
 struct TestableDreamOdometer : public DreamGMapping::DreamOdometer {
   ros::Publisher odom_pub_;
+  double left_wheel_pos_ = 0.0;
+  double right_wheel_pos_ = 0.0;
 
 public:
+  ~TestableDreamOdometer() { odom_pub_.shutdown(); }
   explicit TestableDreamOdometer(ros::NodeHandle nh) : DreamOdometer(nh) {
     odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>("odom", 1);
+  }
+
+  void
+  straight_line_robot_increment_and_publish(const double &increment_in_meters) {
+    auto msg = std_msgs::Float32MultiArray();
+    left_wheel_pos_ += SimpleRoboticsCppUtils::normalize_angle_2PI(
+        increment_in_meters / wheel_radius_);
+    right_wheel_pos_ = -left_wheel_pos_; // because right wheel's right hand
+                                         // positive direction is opposite
+    publish_odom({left_wheel_pos_, right_wheel_pos_});
   }
 
   void publish_odom(const std::pair<double, double> &wheel_pos_pair) {
@@ -34,6 +50,8 @@ public:
     wheel_pos.data.push_back(wheel_pos_pair.first);
     wheel_pos.data.push_back(wheel_pos_pair.second);
     odom_pub_.publish(wheel_pos);
+    ros::Duration(0.1).sleep();
+    ros::spinOnce();
   }
 
   Eigen::Matrix4d get_tf_matrix() const { return Eigen::Matrix4d(tf_matrix_); }
@@ -45,9 +63,10 @@ public:
 struct TestableDreamGMapper : public DreamGMapping::DreamGMapper {
 private:
   ros::Publisher laser_pub_;
-  ros::Publisher odom_pub_;
 
 public:
+  ~TestableDreamGMapper() { laser_pub_.shutdown(); }
+
   explicit TestableDreamGMapper(ros::NodeHandle nh) : DreamGMapper(nh) {
     particle_num_ = PARTICLE_NUM;
     laser_pub_ = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
@@ -59,6 +78,15 @@ public:
   get_resampled_indices(const std::vector<Particle> &particles) const {
     return DreamGMapping::DreamGMapper::get_resampled_indices(particles);
   }
+
+  void publish_wall_laser_scan(const double &distance) {
+    // publish a range scan message to itself
+    auto wall_laser_scan = create_wall_laser_scan(distance);
+    laser_pub_.publish(*wall_laser_scan);
+    ros::Duration(0.1).sleep();
+    ros::spinOnce();
+  }
+
   void test_initialization() {
     EXPECT_EQ(particle_num_, PARTICLE_NUM);
     EXPECT_GT(motion_covariances_(0, 0), 0);
@@ -73,30 +101,28 @@ public:
     }
     ROS_INFO("Testing Initialization Passed");
   }
-  void test_laser_before_odom() {
+
+  void test_laser_scan_before_odom_straightline(const double &init_dist) {
     // TODO: organize this code into the initializer
-    ros::NodeHandle nh("~");
-    laser_pub_.publish(sensor_msgs::LaserScan());
-    // sleep in 10ms, which is necessary before spinOnce so subscriber could
-    // the callback
-    usleep(10000);
-    ros::spinOnce();
-    // TODO: laser scan should have NOT been initialized
+    publish_wall_laser_scan(init_dist);
     EXPECT_EQ(received_first_laser_scan_, false);
-    ROS_INFO("Passed test_laser_before_odom");
+    ROS_INFO("Passed test_laser_scan_before_odom_straightline");
   }
 
-  void test_move_and_publish_odom(const double &forward_increment) {
-    auto msg = std_msgs::Float32MultiArray();
-    msg.data.clear();
-    msg.data.push_back(0.1);
-    msg.data.push_back(0.1);
-    // odom_pub_.publish(msg);
-    // TODO: examine wheel odom
+  // One vanilla test, we give good odom and laser point data.
+  void test_with_laser_scan_straight_line(const double &distance) {
+    // TODO: make a wall
+    publish_wall_laser_scan(distance);
+    Eigen::Matrix4d last_odom_pose_groud_truth = Eigen::Matrix4d::Identity();
+    last_odom_pose_groud_truth(0, 3) = INITIAL_WALL_DIST - distance;
+    EXPECT_TRUE(last_odom_pose_.isApprox(last_odom_pose_groud_truth, 1e-3));
+    // laser_scan should have finished now.
+    EXPECT_EQ(received_first_laser_scan_, true);
+    for (const auto &p : particles_) {
+      // std::cout<<"p.pose:"<<*(p.pose_traj_.back())<<std::endl;
+    }
+    // check at the end, if the each particle's pose is close enough, and weight
   }
-
-  // One ginormous test
-  void test_laser_scan(const double &distance) {}
 };
 
 /**
@@ -124,10 +150,16 @@ protected:
     nh.setParam("beam_noise_sigma_squared", BEAM_NOISE_SIGMA_SQUARED);
     nh.setParam("beam_kernel_size", BEAM_KERNEL_SIZE);
     nh.setParam("map_size_in_meters", MAP_SIZE_IN_METERS);
+    nh.setParam("translation_active_threshold", TRANSLATION_ACTIVE_THRESHOLD);
+    nh.setParam("angular_active_threshold", ANGULAR_ACTIVE_THRESHOLD);
+
     dream_gmapper = new TestableDreamGMapper(nh);
     dream_odometer = new TestableDreamOdometer(nh);
   }
-  void TearDown() override { delete dream_gmapper; }
+  void TearDown() override {
+    delete dream_gmapper;
+    delete dream_odometer;
+  }
 };
 
 /**
@@ -145,8 +177,6 @@ TEST_F(DreamGMapperTests, TestableDreamOdometer) {
   current_wheel_pos.first += M_PI / 2.0;
   current_wheel_pos.second += -M_PI / 2.0;
   dream_odometer->publish_odom(current_wheel_pos);
-  ros::Duration(0.1).sleep();
-  ros::spinOnce();
   odom_base_link = dream_odometer->get_tf_matrix();
   groud_truth(0, 3) = WHEEL_DIAMETER * M_PI / 4.0;
   EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
@@ -155,14 +185,10 @@ TEST_F(DreamGMapperTests, TestableDreamOdometer) {
   current_wheel_pos.first += M_PI / 2.0;
   current_wheel_pos.second += M_PI / 2.0;
   dream_odometer->publish_odom(current_wheel_pos);
-  ros::Duration(0.1).sleep();
-  ros::spinOnce();
   odom_base_link = dream_odometer->get_tf_matrix();
   double theta = -WHEEL_DIAMETER / WHEEL_DIST * M_PI / 2.0;
   Eigen::AngleAxisd rotationZ(theta, Eigen::Vector3d(0, 0, 1));
   groud_truth.block<3, 3>(0, 0) = rotationZ.toRotationMatrix();
-  std::cout << "groud_truth: " << std::endl << groud_truth << std::endl;
-  std::cout << "odom_base_link: " << std::endl << odom_base_link << std::endl;
   EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
 
   // turn by 2pi in n segments with the left wheel being still. So the robot
@@ -176,12 +202,8 @@ TEST_F(DreamGMapperTests, TestableDreamOdometer) {
   for (int i = 0; i < N_SEGMENT; ++i) {
     current_wheel_pos.second += right_wheel_delta;
     dream_odometer->publish_odom(current_wheel_pos);
-    ros::Duration(0.1).sleep();
-    ros::spinOnce();
   }
   odom_base_link = dream_odometer->get_tf_matrix();
-  std::cout << "groud_truth: " << std::endl << groud_truth << std::endl;
-  std::cout << "odom_base_link: " << std::endl << odom_base_link << std::endl;
   EXPECT_TRUE(odom_base_link.isApprox(groud_truth, 1e-3));
 }
 
@@ -202,9 +224,8 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
   });
 
   for (unsigned int i = 0; i < particles.size(); ++i) {
-    // This could be flaky
-    // so there's 10 weights in total, and only [0, n * 100] can have over 10
-    // counts
+    // This could be flaky. so there's 10 weights in total, and only [0, n *
+    // 100] can have over 10 counts
     particles[i].weight_ = (i % 100 == 0) ? 100.0 : 1.0;
   }
   auto indices = dream_gmapper->get_resampled_indices(particles);
@@ -218,8 +239,6 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
     if (pair.second > 10) {
       number_of_indices_over_10++;
       EXPECT_EQ(pair.first % 100, 0);
-      //   std::cout << "Indices with counts over 10: " << pair.first
-      //             << "count: " << pair.second << std::endl;
     }
   }
   EXPECT_EQ(number_of_indices_over_10, 10);
@@ -244,13 +263,24 @@ TEST_F(DreamGMapperTests, TestParticleNormalize) {
  */
 TEST_F(DreamGMapperTests, IntegrationTest) {
   dream_gmapper->test_initialization();
-  dream_gmapper->test_laser_before_odom();
-  double distance = 1.0;
-  constexpr double forward_increment = 0.1;
-  for (int i = 0; i < 2; i++) {
-    dream_gmapper->test_move_and_publish_odom(forward_increment);
+  double distance = INITIAL_WALL_DIST;
+  dream_gmapper->test_laser_scan_before_odom_straightline(distance);
+  constexpr double forward_increment =
+      2 *
+      TRANSLATION_ACTIVE_THRESHOLD; // 0.2m
+                                    // TODO: add tear down of the dream_odometer
+                                    // , because its publisher is still alive
+  // start from 0, so first initialize the DreamGMapper with odom and laser scan
+  dream_odometer->straight_line_robot_increment_and_publish(0);
+  dream_gmapper->test_with_laser_scan_straight_line(distance);
+  for (int i = 0; i < 3; i++) {
+    std::cout << "============================= odom pub and laser scan test "
+                 "============================="
+              << std::endl;
     distance -= forward_increment;
-    dream_gmapper->test_laser_scan(distance);
+    dream_odometer->straight_line_robot_increment_and_publish(
+        forward_increment);
+    dream_gmapper->test_with_laser_scan_straight_line(distance);
   }
 }
 

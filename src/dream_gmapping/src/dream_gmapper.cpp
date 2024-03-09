@@ -92,7 +92,7 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   map_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("map", 1);
   initialize_map();
 
-  DreamGMapping::print_all_nodehandle_params(nh_);
+  //   DreamGMapping::print_all_nodehandle_params(nh_);
   ROS_INFO_STREAM("Successfully read parameters for dream_gmapping");
 
   // we are not using TimeSynchronizer because tf2 already provides buffering
@@ -102,7 +102,9 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   // std::shared_ptr<Rigid2D::>
   for (unsigned int i = 0; i < particle_num_; i++) {
     // TODO: check if weight is 1/particle_num;
-    particles_.push_back(Particle{1.0 / particle_num_});
+    particles_.push_back(Particle{
+        1.0 / particle_num_,
+        {std::make_shared<SimpleRoboticsCppUtils::Pose2D>(0.0, 0.0, 0.0)}});
   }
 
   initialize_motion_set();
@@ -157,7 +159,7 @@ void DreamGMapper::laser_scan(
   geometry_msgs::TransformStamped odom_to_base;
   try {
     odom_to_base =
-        tf_buffer_.lookupTransform(base_frame_, odom_frame_, ros::Time(0));
+        tf_buffer_.lookupTransform(odom_frame_, base_frame_, ros::Time(0));
     auto received_time = (ros::Time(0) - odom_to_base.header.stamp).toSec();
     if (received_time > 1.0) {
       ROS_WARN_STREAM("Odom to base transform was received " << received_time);
@@ -173,6 +175,7 @@ void DreamGMapper::laser_scan(
     received_first_laser_scan_ = true;
     store_last_scan(scan_msg);
     ROS_DEBUG_STREAM("Received first laser scan");
+    // We are not storing the odom here, because that will be used for icp next
     return;
   }
 
@@ -203,6 +206,7 @@ void DreamGMapper::laser_scan(
   // - icp: scan match, get initial guess
   Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
   bool icp_converge =
+      scan_msg->ranges.size() != 0 &&
       DreamGMapping::icp_2d(last_cloud_, cloud, T_delta, T_icp_output);
 
   std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
@@ -217,10 +221,11 @@ void DreamGMapper::laser_scan(
     if (icp_converge) {
       // Unit-testble optimization function
       auto [s, m, cloud_in_world_frame] =
-          optimizeAfterIcp(particle, T_icp_output, scan_msg);
+          optimize_after_icp(particle, T_icp_output, scan_msg);
     } else {
       // Update with odom
       score = particle.weight_;
+      // TODO: do we need to add noise here??
       new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
           particle.pose_traj_.back()->to_se3() * T_delta);
       DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
@@ -259,9 +264,9 @@ void DreamGMapper::store_last_scan(PclCloudPtr to_update) {
  * @return std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
  */
 std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
-DreamGMapper::optimizeAfterIcp(const DreamGMapping::Particle &particle,
-                               const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
-                               ScanMsgPtr scan_msg) {
+DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
+                                 const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
+                                 ScanMsgPtr scan_msg) {
   Eigen::Matrix4d new_pose_estimate =
       T_icp_output * (particle.pose_traj_.back()->to_se3());
   double score = 0.0;

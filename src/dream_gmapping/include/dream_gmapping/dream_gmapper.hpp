@@ -83,9 +83,9 @@ protected:
                                  const PclCloudPtr cloud_in_body_frame);
 
   std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
-  optimizeAfterIcp(const DreamGMapping::Particle &particle,
-                   const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
-                   ScanMsgPtr scan_msg);
+  optimize_after_icp(const DreamGMapping::Particle &particle,
+                     const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
+                     ScanMsgPtr scan_msg);
 
   /**
    * @brief Score a point cloud in world frame pixels based on a gaussian
