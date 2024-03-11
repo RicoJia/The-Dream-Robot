@@ -147,6 +147,26 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
 4. In publish map, output tf /map -> /odom
 5. screw_displacement_2d_to_body_frame_transform()
 
+### Bug List
+- Done
+    - There was a silent segfault. Shouldn't cause problems? particle size in test wasn't right; segfault from vector; assignment wasn't right (D)
+        cloud_in_world_frame = DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
+                                                    cloud_in_body_frame);?
+    - why 358? (D)
+    - point cloud size isn't right. Fix? size = 0 (D)
+    - C++ exception with description "vector::_M_range_check: __n (which is 18446744073709551602) >= this->size() (which is 441)" thrown in the test body: this is because the wall is infinitely long. One way is to make a wall that's 1m long. (D)
+    - Why odom is at the bottom of the map, instead of at the center of the circle? Because you selected odom, but there's no tf for map-> odom. If selecting map, there will be.
+    - Why there's points beyond the line? (not sure, changing the range to smaller made this issue go away)
+    - publish map to odom tf (see the code)
+
+- TODO
+    - odom is not right?
+    - Make sure the max ranges are not registered, but the line all the way up to them are
+    - log score? (TODO)
+    - double freeing problem?
+- Point not found? Give it a score? Check probablistic robotcs
+
+
 ### Optional Improvement 1: Motion Model Reorg
 
 1. Add noise to T directly, using something similar to `drawFromMotion` That'd be a motion model; Apply that to each particle

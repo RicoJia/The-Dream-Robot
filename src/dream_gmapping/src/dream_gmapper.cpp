@@ -34,7 +34,9 @@
 // Need message filter. Also, a 1s "expiration time"?
 #include "dream_gmapping/dream_gmapper.hpp"
 #include "dream_gmapping/dream_gmapping_utils.hpp"
+#include "geometry_msgs/TransformStamped.h"
 #include "nav_msgs/OccupancyGrid.h"
+#include "ros/duration.h"
 #include "simple_robotics_cpp_utils/math_utils.hpp"
 #include "tf2/exceptions.h"
 #include <algorithm>
@@ -132,6 +134,9 @@ void DreamGMapper::initialize_map() {
   map_.info.origin.position.z = 0.0;
   origin_offset_ = map_size_ * map_size_ / 2;
   map_.info.origin.orientation.w = 1.0;
+
+  map_to_odom_tf_.header.frame_id = "map";
+  map_to_odom_tf_.child_frame_id = "odom";
 }
 
 void DreamGMapper::initialize_motion_set() {
@@ -184,20 +189,21 @@ void DreamGMapper::laser_scan(
       tf2::transformToEigen(odom_to_base.transform);
   Eigen::Matrix4d current_odom_pose = transform_eigen.matrix();
   auto T_delta = last_odom_pose_.inverse() * current_odom_pose;
-  last_odom_pose_ = current_odom_pose;
   // T_delta -> delta_translation, delta_rotation
   Eigen::Vector3d delta_translation_vec = T_delta.block<3, 1>(0, 3);
   double delta_translation = delta_translation_vec.norm();
   double delta_theta =
       atan2(T_delta(1, 0), T_delta(0, 0)); // Rotation around Z-axis
+  last_odom_pose_ = current_odom_pose;
 
   // If odom, angular distance is not enough, skip.
   if (delta_translation < translation_active_threshold_ &&
       delta_theta < angular_active_threshold_)
     return;
 
-  PclCloudPtr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-  bool filling_success = DreamGMapping::fill_point_cloud(scan_msg, cloud);
+  PclCloudPtr cloud_in_body_frame(new pcl::PointCloud<pcl::PointXYZ>());
+  bool filling_success =
+      DreamGMapping::fill_point_cloud(scan_msg, cloud_in_body_frame);
   if (!filling_success) {
     ROS_WARN("Failed to fill point cloud");
     return;
@@ -205,9 +211,9 @@ void DreamGMapper::laser_scan(
 
   // - icp: scan match, get initial guess
   Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
-  bool icp_converge =
-      scan_msg->ranges.size() != 0 &&
-      DreamGMapping::icp_2d(last_cloud_, cloud, T_delta, T_icp_output);
+  bool icp_converge = scan_msg->ranges.size() != 0 &&
+                      DreamGMapping::icp_2d(last_cloud_, cloud_in_body_frame,
+                                            T_delta, T_icp_output);
 
   std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
   cloud_in_world_frame_vec.reserve(particle_num_);
@@ -220,18 +226,21 @@ void DreamGMapper::laser_scan(
     // world frame
     if (icp_converge) {
       // Unit-testble optimization function
-      auto [s, m, cloud_in_world_frame] =
-          optimize_after_icp(particle, T_icp_output, scan_msg);
+      auto [m, s, c] = optimize_after_icp(particle, T_icp_output, scan_msg);
+      score = s;
+      new_pose_estimate = m;
+      cloud_in_world_frame = c;
     } else {
       // Update with odom
       score = particle.weight_;
       // TODO: do we need to add noise here??
       new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
           particle.pose_traj_.back()->to_se3() * T_delta);
-      DreamGMapping::get_point_cloud_in_world_frame(new_pose_estimate,
-                                                    cloud_in_world_frame);
+      cloud_in_world_frame = DreamGMapping::get_point_cloud_in_world_frame(
+          new_pose_estimate, cloud_in_body_frame);
       DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
     }
+
     // store score, and the new pose now, new point cloud in world frame
     cloud_in_world_frame_vec.push_back(cloud_in_world_frame);
     particle.pose_traj_.back() =
@@ -241,8 +250,8 @@ void DreamGMapper::laser_scan(
 
   resample_if_needed_and_update_particle_map_and_find_best_pose(
       cloud_in_world_frame_vec);
-  publish_map();
-  store_last_scan(cloud);
+  publish_map_and_tf();
+  store_last_scan(cloud_in_body_frame);
 }
 
 void DreamGMapper::store_last_scan(
@@ -280,8 +289,9 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
     PclCloudPtr cloud_in_world_frame_pixelized(
         new pcl::PointCloud<pcl::PointXYZ>());
     DreamGMapping::fill_point_cloud(scan_msg, cloud_in_world_frame_pixelized);
-    DreamGMapping::get_point_cloud_in_world_frame(
-        new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
+    cloud_in_world_frame_pixelized =
+        DreamGMapping::get_point_cloud_in_world_frame(
+            new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
     DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_pixelized,
                                         resolution_);
     // observation model
@@ -330,6 +340,7 @@ double DreamGMapper::observation_model_score(
         auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
         auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
                                        p_hit.y + p_free_offset.y);
+        // what do you do when the point is unknown yet - just score?
         // If p_hit is full or p_hit is a max, but p_free is not, then we have a
         // match, then score (2 * 2000 lookups) and quit. TODO: is_full returns
         // false even on unknown pixels
@@ -339,16 +350,25 @@ double DreamGMapper::observation_model_score(
           // compute the log score of the single beam match
           score +=
               -(xx * xx + yy * yy) * resolution_squared / beam_noise_variance_;
+          match_found = true;
           break;
         }
       }
     }
-    // If not found, add multiply exp(-1*kernel_size_^2/sigma), PRECOMPUTED
+    // TODO
+    // std::cout<<"observation_model_score, after kernel search:
+    // log"<<score<<std::endl; If not found, add multiply
+    // exp(-1*kernel_size_^2/sigma), PRECOMPUTED
     if (!match_found) {
       score += log_prob_beam_not_found_in_kernel_;
+      //   //TODO
+      //   std::cout<<"observation_model_score, not found:
+      //   log"<<score<<std::endl;
     }
   }
 
+  // TODO
+  std::cout << "log score: " << score << std::endl;
   // take exponential of the sum score
   return std::exp(score);
 }
@@ -384,7 +404,9 @@ std::vector<unsigned int> DreamGMapper::get_resampled_indices(
 
 void DreamGMapper::add_cloud_in_world_frame_to_map(
     Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized) {
-  for (const auto &point : cloud_in_world_frame_vec_pixelized->points) {
+  for (unsigned int i = 0;
+       i < cloud_in_world_frame_vec_pixelized->points.size(); ++i) {
+    const auto &point = cloud_in_world_frame_vec_pixelized->points.at(i);
     p.laser_point_accumulation_map_.add_point(point.x, point.y, true);
     auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
         *p.pose_traj_.back(), resolution_);
@@ -418,12 +440,13 @@ void DreamGMapper::
     tmp_particles.reserve(particle_num_);
     const double weight = 1.0 / particle_num_;
     for (unsigned int i = 0; i < particle_num_; ++i) {
-      const unsigned int resampled_index = resampled_indices[i];
+      const unsigned int resampled_index = resampled_indices.at(i);
       ++counts[resampled_index];
       tmp_particles.push_back(particles_.at(resampled_index));
       tmp_particles.back().weight_ = weight;
+      // TODO: to restore
       add_cloud_in_world_frame_to_map(tmp_particles.back(),
-                                      cloud_in_world_frame_vec[i]);
+                                      cloud_in_world_frame_vec.at(i));
     }
     particles_ = tmp_particles;
 
@@ -431,8 +454,8 @@ void DreamGMapper::
   } else {
     // just add point clouds into maps.
     for (unsigned int i = 0; i < particle_num_; ++i) {
-      add_cloud_in_world_frame_to_map(particles_[i],
-                                      cloud_in_world_frame_vec[i]);
+      add_cloud_in_world_frame_to_map(particles_.at(i),
+                                      cloud_in_world_frame_vec.at(i));
     }
     find_most_weighted_particle_index(particles_, best_particle_index_);
   }
@@ -442,13 +465,22 @@ void DreamGMapper::
 }
 
 // Our map is a fixed size one, sizing-up is currently not supported
-void DreamGMapper::publish_map() {
+void DreamGMapper::publish_map_and_tf() {
   // get the best pose
   const auto &best_particle = particles_.at(best_particle_index_);
   map_.header.stamp = ros::Time::now();
   best_particle.laser_point_accumulation_map_.fill_ros_map(map_.data, map_size_,
                                                            origin_offset_);
   map_pub_.publish(map_);
+  const auto &map_to_baselink = best_particle.pose_traj_.back()->to_se3();
+  const Eigen::Matrix4d map_to_odom =
+      map_to_baselink * last_odom_pose_.inverse();
+  const Eigen::Isometry3d map_to_odom_iso(map_to_odom);
+  map_to_odom_tf_.header.stamp = ros::Time::now();
+  geometry_msgs::TransformStamped tmp_tf_ =
+      tf2::eigenToTransform(map_to_odom_iso);
+  map_to_odom_tf_.transform = tmp_tf_.transform;
+  br_.sendTransform(map_to_odom_tf_);
 }
 
 } // namespace DreamGMapping

@@ -83,6 +83,17 @@ public:
       // add each point to the map TODO. Obstacle is 100, free is 0
       const int index = pixel.y * static_cast<int>(map_size) + pixel.x +
                         static_cast<int>(origin_offset);
+
+      if (index < 0) {
+        std::cout << "pixel: " << pixel.x << "," << pixel.y
+                  << " has negative index " << index << ". Skipping";
+        continue;
+      }
+      if (index >= data.size()) {
+        std::cout << "pixel: " << pixel.x << "," << pixel.y
+                  << " has index over the map size: " << index << ". Skipping";
+        continue;
+      }
       if ((hit_count << 1) > total_count) {
         data.at(index) = 100;
       } else {
@@ -182,8 +193,6 @@ get_point_cloud_in_world_frame(const SimpleRoboticsCppUtils::Pose2D &pose,
   PclCloudPtr cloud_in_world_frame{new pcl::PointCloud<pcl::PointXYZ>()};
   pcl::transformPointCloud(*cloud_in_body_frame, *cloud_in_world_frame,
                            pose_eigen4d);
-  // TODO, pixelize the cloud????
-  // TODO: write a test?
   return cloud_in_world_frame;
 }
 

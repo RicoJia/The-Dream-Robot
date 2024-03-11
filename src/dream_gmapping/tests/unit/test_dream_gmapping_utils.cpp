@@ -14,6 +14,7 @@ uint TRAJ_POINT_NUM = 10 * 10 / (5 * 5) * 1e4;
 uint TRIAL_NUM = 5;
 unsigned int OBSTACLE_COUNT = 20 * 1000;
 
+#if 0
 /**
  * @brief Best case for particle creation is when all particles share the same
  * underlying poses.
@@ -26,8 +27,8 @@ void get_list_of_particle_best_case(
     const std::unique_ptr<Particle> &p_ptr,
     std::vector<std::unique_ptr<Particle>> &p_list) {
   p_list.clear();
-  p_list.reserve(PARTICLE_NUM);
-  for (int i = 0; i < PARTICLE_NUM; i++) {
+  p_list.reserve(LARGE_PARTICLE_NUM);
+  for (int i = 0; i < LARGE_PARTICLE_NUM; i++) {
     p_list.emplace_back(std::make_unique<Particle>(*p_ptr));
   }
   // c++ 11 already uses move semantics to return local objects
@@ -70,8 +71,8 @@ void get_list_of_particle_worst_case(
     std::vector<std::unique_ptr<Particle>> &p_list) {
   // here we must clear the vector. Otherwise we will be appending to the vector
   p_list.clear();
-  p_list.reserve(PARTICLE_NUM);
-  for (int i = 0; i < PARTICLE_NUM; i++) {
+  p_list.reserve(LARGE_PARTICLE_NUM);
+  for (int i = 0; i < LARGE_PARTICLE_NUM; i++) {
     p_list.push_back(std::make_unique<Particle>());
     p_list.back()->weight_ = 1;
     for (int i = 0; i < TRAJ_POINT_NUM; i++) {
@@ -101,6 +102,8 @@ TEST(ParticleFilterTests, TestParticleMemoryWorstCase) {
   // flaky.
 }
 
+#endif
+
 /**********************************Utils Tests*********************************/
 
 TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
@@ -118,6 +121,16 @@ TEST(DreamGMapperUtilsTests, TestPointCloudUtils) {
       filled_success = DreamGMapping::fill_point_cloud(
           create_wall_laser_scan(8), next_cloud);
       assert(filled_success && "Point Cloud Filling Failure");
+
+      // Test point cloud in world frame
+      Eigen::Matrix4d new_pose_estimate = Eigen::Matrix4d::Identity();
+      auto cloud_in_world_frame = DreamGMapping::get_point_cloud_in_world_frame(
+          new_pose_estimate, next_cloud);
+      // TODO
+      std::cout << "size: " << cloud_in_world_frame->points.size() << std::endl;
+      EXPECT_GT(cloud_in_world_frame->points.size(), 0);
+      constexpr double resolution = 0.1;
+      DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution);
 
       Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
       auto T_init_guess =

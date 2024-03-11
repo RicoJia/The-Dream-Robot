@@ -1,5 +1,6 @@
 #pragma once
 #include "dream_gmapping/dream_gmapping_utils.hpp"
+#include "tf2_ros/transform_broadcaster.h"
 #include <cmath>
 #include <geometry_msgs/TransformStamped.h>
 #include <memory>
@@ -49,6 +50,8 @@ protected:
   tf2_ros::Buffer tf_buffer_ = tf2_ros::Buffer();
   tf2_ros::TransformListener tf_listener_ =
       tf2_ros::TransformListener(tf_buffer_);
+  tf2_ros::TransformBroadcaster br_;
+  geometry_msgs::TransformStamped map_to_odom_tf_;
 
   // TODO: to demolish
   Eigen::Matrix4d last_odom_pose_ = Eigen::Matrix4d::Identity();
@@ -77,10 +80,6 @@ protected:
   void store_last_scan(
       const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
   void store_last_scan(PclCloudPtr to_update);
-
-  PclCloudPtr
-  get_point_cloud_in_world_frame(const SimpleRoboticsCppUtils::Pose2D &pose,
-                                 const PclCloudPtr cloud_in_body_frame);
 
   std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
   optimize_after_icp(const DreamGMapping::Particle &particle,
@@ -123,6 +122,6 @@ protected:
       Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized);
   void resample_if_needed_and_update_particle_map_and_find_best_pose(
       const std::vector<PclCloudPtr> &cloud_in_world_frame_vec);
-  void publish_map();
+  void publish_map_and_tf();
 };
 } // namespace DreamGMapping
