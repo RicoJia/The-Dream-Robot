@@ -154,6 +154,7 @@ protected:
     nh.setParam("translation_active_threshold", TRANSLATION_ACTIVE_THRESHOLD);
     nh.setParam("angular_active_threshold", ANGULAR_ACTIVE_THRESHOLD);
     nh.setParam("particle_num", SMALL_PARTICLE_NUM);
+    nh.setParam("skip_invalid_beams", true);
 
     dream_gmapper = new TestableDreamGMapper(nh);
     dream_odometer = new TestableDreamOdometer(nh);
@@ -269,14 +270,14 @@ TEST_F(DreamGMapperTests, IntegrationTest) {
   double distance = INITIAL_WALL_DIST;
   dream_gmapper->test_laser_scan_before_odom_straightline(distance);
   constexpr double forward_increment =
-      2 *
+      1.1 *
       TRANSLATION_ACTIVE_THRESHOLD; // 0.2m
                                     // TODO: add tear down of the dream_odometer
                                     // , because its publisher is still alive
   // start from 0, so first initialize the DreamGMapper with odom and laser scan
   dream_odometer->straight_line_robot_increment_and_publish(0);
   dream_gmapper->test_with_laser_scan_straight_line(distance);
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 6; i++) {
     std::cout << "============================= odom pub and laser scan test "
                  "============================="
               << std::endl;

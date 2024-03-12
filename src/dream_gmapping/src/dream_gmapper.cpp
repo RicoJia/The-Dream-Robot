@@ -79,6 +79,8 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   nh_.getParam("resolution", resolution_);
   nh_.getParam("beam_noise_variance", beam_noise_variance_);
   nh_.getParam("beam_kernel_size", beam_kernel_size_);
+  nh_.getParam("skip_invalid_beams", skip_invalid_beams_);
+
   log_prob_beam_not_found_in_kernel_ =
       -(2 * std::pow(resolution_ * beam_kernel_size_, 2)) /
       beam_noise_variance_;
@@ -178,7 +180,7 @@ void DreamGMapper::laser_scan(
   if (!received_first_laser_scan_) {
     // Store the laser->base transform
     received_first_laser_scan_ = true;
-    store_last_scan(scan_msg);
+    store_last_scan(scan_msg, skip_invalid_beams_);
     ROS_DEBUG_STREAM("Received first laser scan");
     // We are not storing the odom here, because that will be used for icp next
     return;
@@ -188,7 +190,7 @@ void DreamGMapper::laser_scan(
   Eigen::Affine3d transform_eigen =
       tf2::transformToEigen(odom_to_base.transform);
   Eigen::Matrix4d current_odom_pose = transform_eigen.matrix();
-  auto T_delta = last_odom_pose_.inverse() * current_odom_pose;
+  Eigen::Matrix4d T_delta = last_odom_pose_.inverse() * current_odom_pose;
   // T_delta -> delta_translation, delta_rotation
   Eigen::Vector3d delta_translation_vec = T_delta.block<3, 1>(0, 3);
   double delta_translation = delta_translation_vec.norm();
@@ -202,8 +204,8 @@ void DreamGMapper::laser_scan(
     return;
 
   PclCloudPtr cloud_in_body_frame(new pcl::PointCloud<pcl::PointXYZ>());
-  bool filling_success =
-      DreamGMapping::fill_point_cloud(scan_msg, cloud_in_body_frame);
+  bool filling_success = DreamGMapping::fill_point_cloud(
+      scan_msg, cloud_in_body_frame, skip_invalid_beams_);
   if (!filling_success) {
     ROS_WARN("Failed to fill point cloud");
     return;
@@ -217,6 +219,10 @@ void DreamGMapper::laser_scan(
 
   std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
   cloud_in_world_frame_vec.reserve(particle_num_);
+  // TODO
+  std::cout << "icp output: " << T_icp_output << std::endl;
+  // TODO
+  std::cout << "current_odom_pose" << current_odom_pose << std::endl;
 
   for (auto &particle : particles_) {
     PclCloudPtr cloud_in_world_frame(new pcl::PointCloud<pcl::PointXYZ>());
@@ -248,15 +254,15 @@ void DreamGMapper::laser_scan(
     particle.weight_ = score;
   }
 
-  resample_if_needed_and_update_particle_map_and_find_best_pose(
-      cloud_in_world_frame_vec);
+  resample_if_needed_and_update_particle_map_and_find_best_pose(scan_msg);
   publish_map_and_tf();
   store_last_scan(cloud_in_body_frame);
 }
 
 void DreamGMapper::store_last_scan(
-    const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
-  DreamGMapping::fill_point_cloud(scan_msg, last_cloud_);
+    const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg,
+    const bool &skip_invalid_beams) {
+  DreamGMapping::fill_point_cloud(scan_msg, last_cloud_, skip_invalid_beams);
 }
 void DreamGMapper::store_last_scan(PclCloudPtr to_update) {
   last_cloud_ = to_update;
@@ -288,7 +294,9 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
         SimpleRoboticsCppUtils::Pose2D(motion * new_pose_estimate);
     PclCloudPtr cloud_in_world_frame_pixelized(
         new pcl::PointCloud<pcl::PointXYZ>());
-    DreamGMapping::fill_point_cloud(scan_msg, cloud_in_world_frame_pixelized);
+    // we are comparing the valid point cloud
+    DreamGMapping::fill_point_cloud(scan_msg, cloud_in_world_frame_pixelized,
+                                    skip_invalid_beams_);
     cloud_in_world_frame_pixelized =
         DreamGMapping::get_point_cloud_in_world_frame(
             new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
@@ -296,7 +304,7 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
                                         resolution_);
     // observation model
     double score = observation_model_score(
-        cloud_in_world_frame_pixelized, scan_msg, new_pose_estimate_neighbor,
+        cloud_in_world_frame_pixelized, new_pose_estimate_neighbor,
         particle.laser_point_accumulation_map_);
     if (score > best_score) {
       best_score = score;
@@ -308,22 +316,19 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
   return std::make_tuple(best_pose, best_score, best_cloud);
 }
 
+// search for nearest p_hit for each beam end point. That's a looser restraint
+// than p_hit and p_free
 double DreamGMapper::observation_model_score(
-    PclCloudPtr cloud_in_world_frame_pixelized, ScanMsgPtr scan_msg,
-    const Pose2D &pose_estimate,
+    PclCloudPtr cloud_in_world_frame_pixelized, const Pose2D &pose_estimate,
     const PointAccumulator &laser_point_accumulation_map) {
   double score = 0;
   Pixel2DWithCount pose_estimated_pixelized =
       Pixel2DWithCount(pose_estimate, resolution_);
-
-  // go over all scan message, and their angle
-  for (double angle = scan_msg->angle_min, i = 0; i < scan_msg->ranges.size();
-       i++, angle += scan_msg->angle_increment) {
+  for (unsigned int i = 0; i < cloud_in_world_frame_pixelized->points.size();
+       ++i) {
     auto endpoint = cloud_in_world_frame_pixelized
                         ->points[i]; // x, y in world frame, pixelized
     auto endpoint_pixel = Pixel2DWithCount(endpoint.x, endpoint.y);
-    auto p_free_offset = SimpleRoboticsCppUtils::get_unit_vector_endpoint_pixel(
-        endpoint_pixel, pose_estimated_pixelized);
     // Pre-compute the kernel. [0, 1, -1, 2, -2], use it in both xx and yy
     // directions. Find the pixelized p_hit given
     // We go over a 2D kernel layer by layer. Each layer goes around a square,
@@ -338,15 +343,10 @@ double DreamGMapper::observation_model_score(
         const char &yy = beam_search_kernel_[i];
         // find p_hit and p_free right in front of it.
         auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
-        auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
-                                       p_hit.y + p_free_offset.y);
-        // what do you do when the point is unknown yet - just score?
-        // If p_hit is full or p_hit is a max, but p_free is not, then we have a
-        // match, then score (2 * 2000 lookups) and quit. TODO: is_full returns
-        // false even on unknown pixels
-        if (!laser_point_accumulation_map.is_full(p_free) &&
-            (laser_point_accumulation_map.is_full(p_hit) ||
-             scan_msg->ranges[i] == scan_msg->range_max)) {
+        // what do you do when the point is unknown yet - just score?  TODO:
+        // is_full returns If p_hit is full, then we have a match, then score (2
+        // * 2000 lookups) and quit. false even on unknown pixels
+        if (laser_point_accumulation_map.is_full(p_hit)) {
           // compute the log score of the single beam match
           score +=
               -(xx * xx + yy * yy) * resolution_squared / beam_noise_variance_;
@@ -355,7 +355,6 @@ double DreamGMapper::observation_model_score(
         }
       }
     }
-    // TODO
     // std::cout<<"observation_model_score, after kernel search:
     // log"<<score<<std::endl; If not found, add multiply
     // exp(-1*kernel_size_^2/sigma), PRECOMPUTED
@@ -366,10 +365,7 @@ double DreamGMapper::observation_model_score(
       //   log"<<score<<std::endl;
     }
   }
-
-  // TODO
-  std::cout << "log score: " << score << std::endl;
-  // take exponential of the sum score
+  //   take exponential of the sum score
   return std::exp(score);
 }
 
@@ -422,9 +418,47 @@ void DreamGMapper::add_cloud_in_world_frame_to_map(
   }
 }
 
+void DreamGMapper::add_scan_msg_to_map(Particle &p,
+                                       const ScanMsgPtr &scan_msg) {
+  PclCloudPtr cloud_in_body_frame_full(new pcl::PointCloud<pcl::PointXYZ>());
+  bool filling_success = DreamGMapping::fill_point_cloud(
+      scan_msg, cloud_in_body_frame_full, false);
+  if (!filling_success) {
+    ROS_WARN("Failed to fill point cloud");
+    return;
+  }
+  auto cloud_in_world_frame_full =
+      DreamGMapping::get_point_cloud_in_world_frame(
+          p.pose_traj_.back()->to_se3(), cloud_in_body_frame_full);
+  DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_full, resolution_);
+
+  for (unsigned int i = 0; i < scan_msg->ranges.size(); ++i) {
+    const double range = scan_msg->ranges.at(i);
+    if (range < scan_msg->range_min)
+      continue;
+    // adding obstacle points only if its range is less than max
+    const auto &endpoint = cloud_in_world_frame_full->points.at(i);
+    const auto &endpoint_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
+        SimpleRoboticsCppUtils::Pixel2DWithCount(endpoint.x, endpoint.y));
+    if (std::abs(range - scan_msg->range_max) > resolution_) {
+
+      p.laser_point_accumulation_map_.add_point(endpoint_pixelized.x,
+                                                endpoint_pixelized.y, true);
+    }
+    auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
+        *p.pose_traj_.back(), resolution_);
+    auto line = SimpleRoboticsCppUtils::bresenham_rico_line(pose_pixelized,
+                                                            endpoint_pixelized);
+    for (unsigned int i = 0; i < line.size() - 1; ++i) {
+      const auto &p_free = line[i];
+      p.laser_point_accumulation_map_.add_point(p_free.x, p_free.y, false);
+    }
+  }
+}
+
 void DreamGMapper::
     resample_if_needed_and_update_particle_map_and_find_best_pose(
-        const std::vector<PclCloudPtr> &cloud_in_world_frame_vec) {
+        const ScanMsgPtr &scan_msg) {
   normalize_weights(particles_);
   double normal_sqred_sum =
       std::accumulate(particles_.begin(), particles_.end(), 0.0,
@@ -444,9 +478,7 @@ void DreamGMapper::
       ++counts[resampled_index];
       tmp_particles.push_back(particles_.at(resampled_index));
       tmp_particles.back().weight_ = weight;
-      // TODO: to restore
-      add_cloud_in_world_frame_to_map(tmp_particles.back(),
-                                      cloud_in_world_frame_vec.at(i));
+      add_scan_msg_to_map(tmp_particles.back(), scan_msg);
     }
     particles_ = tmp_particles;
 
@@ -454,8 +486,7 @@ void DreamGMapper::
   } else {
     // just add point clouds into maps.
     for (unsigned int i = 0; i < particle_num_; ++i) {
-      add_cloud_in_world_frame_to_map(particles_.at(i),
-                                      cloud_in_world_frame_vec.at(i));
+      add_scan_msg_to_map(particles_.at(i), scan_msg);
     }
     find_most_weighted_particle_index(particles_, best_particle_index_);
   }
@@ -475,6 +506,13 @@ void DreamGMapper::publish_map_and_tf() {
   const auto &map_to_baselink = best_particle.pose_traj_.back()->to_se3();
   const Eigen::Matrix4d map_to_odom =
       map_to_baselink * last_odom_pose_.inverse();
+  // TODO
+  std::cout << "map to baselink: " << map_to_baselink << std::endl;
+  // TODO
+  std::cout << "last_odom_pose: " << last_odom_pose_ << std::endl;
+  // TODO
+  std::cout << "map to odom: " << map_to_odom << std::endl;
+
   const Eigen::Isometry3d map_to_odom_iso(map_to_odom);
   map_to_odom_tf_.header.stamp = ros::Time::now();
   geometry_msgs::TransformStamped tmp_tf_ =
@@ -483,4 +521,78 @@ void DreamGMapper::publish_map_and_tf() {
   br_.sendTransform(map_to_odom_tf_);
 }
 
+/**
+ * ********************************************************************************
+ * GRAVEYARD
+ * ********************************************************************************
+ */
+// Problem with this method is: cloud_in_world_frame_pixelized does not have the
+// same number of elements as scan_msg double
+// DreamGMapper::observation_model_score(
+//     PclCloudPtr cloud_in_world_frame_pixelized, ScanMsgPtr scan_msg,
+//     const Pose2D &pose_estimate,
+//     const PointAccumulator &laser_point_accumulation_map) {
+//   double score = 0;
+//   Pixel2DWithCount pose_estimated_pixelized =
+//       Pixel2DWithCount(pose_estimate, resolution_);
+
+//   // go over all scan message, and their angle
+//   for (double angle = scan_msg->angle_min, i = 0; i <
+//   scan_msg->ranges.size();
+//        i++, angle += scan_msg->angle_increment) {
+//     auto endpoint = cloud_in_world_frame_pixelized
+//                         ->points[i]; // x, y in world frame, pixelized
+//     auto endpoint_pixel = Pixel2DWithCount(endpoint.x, endpoint.y);
+//     auto p_free_offset =
+//     SimpleRoboticsCppUtils::get_unit_vector_endpoint_pixel(
+//         endpoint_pixel, pose_estimated_pixelized);
+//     // Pre-compute the kernel. [0, 1, -1, 2, -2], use it in both xx and yy
+//     // directions. Find the pixelized p_hit given
+//     // We go over a 2D kernel layer by layer. Each layer goes around a
+//     square,
+//     // like [1, 0], [1,1], [1,-1], [] something like (2,4) before even going
+//     to bool match_found = false; double resolution_squared = resolution_ *
+//     resolution_; for (const char &xx : beam_search_kernel_) {
+//       for (unsigned int i = 0;
+//            std::abs(beam_search_kernel_.at(i)) < std::abs(xx) &&
+//            i < beam_search_kernel_.size();
+//            i++) {
+//         const char &yy = beam_search_kernel_[i];
+//         // find p_hit and p_free right in front of it.
+//         auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
+//         auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
+//                                        p_hit.y + p_free_offset.y);
+//         // what do you do when the point is unknown yet - just score?
+//         // If p_hit is full or p_hit is a max, but p_free is not, then we
+//         have a
+//         // match, then score (2 * 2000 lookups) and quit. TODO: is_full
+//         returns
+//         // false even on unknown pixels
+//         if (!laser_point_accumulation_map.is_full(p_free) &&
+//             (laser_point_accumulation_map.is_full(p_hit) ||
+//              scan_msg->ranges[i] == scan_msg->range_max)) {
+//           // compute the log score of the single beam match
+//           score +=
+//               -(xx * xx + yy * yy) * resolution_squared /
+//               beam_noise_variance_;
+//           match_found = true;
+//           break;
+//         }
+//       }
+//     }
+//     // TODO
+//     // std::cout<<"observation_model_score, after kernel search:
+//     // log"<<score<<std::endl; If not found, add multiply
+//     // exp(-1*kernel_size_^2/sigma), PRECOMPUTED
+//     if (!match_found) {
+//       score += log_prob_beam_not_found_in_kernel_;
+//       //   //TODO
+//       //   std::cout<<"observation_model_score, not found:
+//       //   log"<<score<<std::endl;
+//     }
+//   }
+
+//   // take exponential of the sum score
+//   return std::exp(score);
+// }
 } // namespace DreamGMapping

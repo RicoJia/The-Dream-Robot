@@ -127,7 +127,7 @@ inline void print_all_nodehandle_params(ros::NodeHandle nh) {
 // Returning if filling is successful
 inline bool fill_point_cloud(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg,
-    PclCloudPtr cloud) {
+    PclCloudPtr cloud, const bool &skip_invalid_beams) {
   if (!cloud) {
     // create PclCloudPtr
     PclCloudPtr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -147,10 +147,22 @@ inline bool fill_point_cloud(
           : scan_msg->angle_increment;
   double angle = 0.0;
   for (unsigned int i = 0; i < cloud->width; i++) {
-    // if scan is shorter than range_min, then set it to range_max
-    double range = (scan_msg->ranges[i] < scan_msg->range_min)
-                       ? scan_msg->range_max
-                       : scan_msg->ranges[i];
+    double range;
+    if (skip_invalid_beams) {
+      // if scan is outside the (range_min, range_max), skip
+      if (scan_msg->ranges[i] < scan_msg->range_min ||
+          // TODO: we should use resolution instead of a hardcoded threshold here
+          std::abs(scan_msg->ranges[i] - scan_msg->range_max) < 1e-2) {
+        angle += ANGLE_INCREMENT;
+        continue;
+      }
+      range = scan_msg->ranges[i];
+
+    } else {
+      // if scan is shorter than range_min, then set it to range_max
+      range = (scan_msg->ranges[i] < scan_msg->range_min) ? scan_msg->range_max
+                                                          : scan_msg->ranges[i];
+    }
     cloud->points[i].x = range * std::cos(angle);
     cloud->points[i].y = range * std::sin(angle);
     angle += ANGLE_INCREMENT;
@@ -166,8 +178,9 @@ inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
   // pcl will try to align source to target. That's counter to our motion
   icp.setInputCloud(curr_scan);
   icp.setInputTarget(prev_scan);
-  icp.setMaximumIterations(1500);     // A higher number of iterations
-  icp.setTransformationEpsilon(1e-6); // A smaller convergence threshold
+  icp.setMaximumIterations(1500);        // A higher number of iterations
+  icp.setTransformationEpsilon(1e-6);    // A smaller convergence threshold
+  icp.setMaxCorrespondenceDistance(0.1); // TODO?
   icp.setRANSACOutlierRejectionThreshold(0.05);
   // potentially decrease in a loop
   icp.setEuclideanFitnessEpsilon(

@@ -42,6 +42,7 @@ protected:
   double beam_noise_variance_;
   double log_prob_beam_not_found_in_kernel_;
   double beam_kernel_size_;
+  bool skip_invalid_beams_ = true;
 
   // inconfigurable parameters
   // no need to store
@@ -78,7 +79,8 @@ protected:
 
   // get the most recent odom -> draw a new noise -> go through all particles,
   void store_last_scan(
-      const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+      const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg,
+      const bool &skip_invalid_beams);
   void store_last_scan(PclCloudPtr to_update);
 
   std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
@@ -95,9 +97,10 @@ protected:
    * @param pose_estimate pose estimate of the robot
    * @return double: gaussian likelihood of having all beams
    */
+
   double
   observation_model_score(PclCloudPtr cloud_in_world_frame_pixelized,
-                          ScanMsgPtr scan_msg, const Pose2D &pose_estimate,
+                          const Pose2D &pose_estimate,
                           const PointAccumulator &laser_point_accumulation_map);
 
   void normalize_weights(std::vector<Particle> &particles);
@@ -120,8 +123,9 @@ protected:
    */
   void add_cloud_in_world_frame_to_map(
       Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized);
+  void add_scan_msg_to_map(Particle &p, const ScanMsgPtr &scan_msg);
   void resample_if_needed_and_update_particle_map_and_find_best_pose(
-      const std::vector<PclCloudPtr> &cloud_in_world_frame_vec);
+      const ScanMsgPtr &scan_msg);
   void publish_map_and_tf();
 };
 } // namespace DreamGMapping

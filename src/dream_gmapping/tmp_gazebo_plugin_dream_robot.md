@@ -160,7 +160,7 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
     - publish map to odom tf (see the code)
 
 - TODO
-    - odom is not right?
+    - map to base not right.
     - Make sure the max ranges are not registered, but the line all the way up to them are
     - log score? (TODO)
     - double freeing problem?
