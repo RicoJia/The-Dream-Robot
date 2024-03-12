@@ -115,14 +115,6 @@ protected:
   std::vector<unsigned int>
   get_resampled_indices(const std::vector<Particle> &particles) const;
 
-  /**
-   * @brief Adding pixelized point cloud to the particle, and free points
-   *
-   * @param p
-   * @param cloud_in_world_frame_vec
-   */
-  void add_cloud_in_world_frame_to_map(
-      Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized);
   void add_scan_msg_to_map(Particle &p, const ScanMsgPtr &scan_msg);
   void resample_if_needed_and_update_particle_map_and_find_best_pose(
       const ScanMsgPtr &scan_msg);

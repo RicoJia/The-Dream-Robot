@@ -217,8 +217,6 @@ void DreamGMapper::laser_scan(
                       DreamGMapping::icp_2d(last_cloud_, cloud_in_body_frame,
                                             T_delta, T_icp_output);
 
-  std::vector<PclCloudPtr> cloud_in_world_frame_vec{};
-  cloud_in_world_frame_vec.reserve(particle_num_);
   // TODO
   std::cout << "icp output: " << T_icp_output << std::endl;
   // TODO
@@ -247,8 +245,6 @@ void DreamGMapper::laser_scan(
       DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
     }
 
-    // store score, and the new pose now, new point cloud in world frame
-    cloud_in_world_frame_vec.push_back(cloud_in_world_frame);
     particle.pose_traj_.back() =
         std::make_shared<SimpleRoboticsCppUtils::Pose2D>(new_pose_estimate);
     particle.weight_ = score;
@@ -396,26 +392,6 @@ std::vector<unsigned int> DreamGMapper::get_resampled_indices(
     index = dist(rng);
   }
   return resampled_indices;
-}
-
-void DreamGMapper::add_cloud_in_world_frame_to_map(
-    Particle &p, const PclCloudPtr &cloud_in_world_frame_vec_pixelized) {
-  for (unsigned int i = 0;
-       i < cloud_in_world_frame_vec_pixelized->points.size(); ++i) {
-    const auto &point = cloud_in_world_frame_vec_pixelized->points.at(i);
-    p.laser_point_accumulation_map_.add_point(point.x, point.y, true);
-    auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
-        *p.pose_traj_.back(), resolution_);
-    auto endpoint_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
-        SimpleRoboticsCppUtils::Pixel2DWithCount(point.x, point.y));
-    // Need to add all free points as well
-    auto line = SimpleRoboticsCppUtils::bresenham_rico_line(pose_pixelized,
-                                                            endpoint_pixelized);
-    for (unsigned int i = 0; i < line.size() - 1; ++i) {
-      const auto &p_free = line[i];
-      p.laser_point_accumulation_map_.add_point(p_free.x, p_free.y, false);
-    }
-  }
 }
 
 void DreamGMapper::add_scan_msg_to_map(Particle &p,
