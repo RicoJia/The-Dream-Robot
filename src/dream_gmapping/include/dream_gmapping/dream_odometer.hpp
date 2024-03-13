@@ -50,13 +50,17 @@ protected:
 
 public:
   DreamOdometer(ros::NodeHandle nh_) {
+    std::string wheel_pos_topic;
+    nh_.getParam("wheel_pos_topic", wheel_pos_topic);
     wheel_odom_sub_ =
-        nh_.subscribe("odom", 1, &DreamOdometer::wheel_odom, this);
+        nh_.subscribe(wheel_pos_topic, 1, &DreamOdometer::wheel_odom, this);
     nh_.getParam("wheel_dist", wheel_dist_);
     nh_.getParam("wheel_diameter", wheel_radius_);
     wheel_radius_ /= 2.0;
     nh_.getParam("base_frame", base_frame_);
     nh_.getParam("odom_frame", odom_frame_);
+
+    ROS_INFO_STREAM("Odometer is subscribing to " << wheel_pos_topic);
 
     tf_msg_.header.frame_id = odom_frame_;
     tf_msg_.child_frame_id = base_frame_;

@@ -52,6 +52,14 @@ public:
     return (hit_count << 1) > total_count;
   }
 
+  inline bool
+  contains(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
+    const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(p.x, p.y);
+    return count_map_.contains(key);
+  }
+
+  inline bool is_empty() const { return count_map_.empty(); }
+
   /**
    * @brief Return a pixel's counts of hits and total counts. If the pixel
    * doesn't exist, return 0, 0
@@ -151,7 +159,8 @@ inline bool fill_point_cloud(
     if (skip_invalid_beams) {
       // if scan is outside the (range_min, range_max), skip
       if (scan_msg->ranges[i] < scan_msg->range_min ||
-          // TODO: we should use resolution instead of a hardcoded threshold here
+          // TODO: we should use resolution instead of a hardcoded threshold
+          // here
           std::abs(scan_msg->ranges[i] - scan_msg->range_max) < 1e-2) {
         angle += ANGLE_INCREMENT;
         continue;

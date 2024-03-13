@@ -8,12 +8,7 @@ find_package(
   catkin REQUIRED
   COMPONENTS # Needed for ros nodehandle, etc. Note: roscpp is the COMPONENT,
              # and catkin is required.
-             roscpp
-             tf2
-             tf2_ros
-             tf2_eigen
-             geometry_msgs
-             nav_msgs)
+             roscpp tf2 tf2_ros tf2_eigen geometry_msgs nav_msgs)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(PCL REQUIRED)
 
@@ -25,7 +20,7 @@ catkin_package()
 # ##############################################################################
 
 file(GLOB src_files "src/main.cpp" "src/dream_gmapper.cpp")
-add_executable(${PROJECT_NAME} ${src_files})
+add_executable(dream_gmapper ${src_files})
 
 file(GLOB odom_src_files "src/odom_main.cpp")
 add_executable(${PROJECT_NAME}_odometer ${odom_src_files})
@@ -36,7 +31,7 @@ include_directories(
   # simple_robotics_cpp_utils in /usr/local/include
   ${CMAKE_SYSTEM_PREFIX_PATH}
   ${PCL_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen
+target_link_libraries(dream_gmapper ${catkin_LIBRARIES} Eigen3::Eigen
                       ${PCL_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_odometer ${catkin_LIBRARIES}
                       Eigen3::Eigen ${PCL_LIBRARIES})

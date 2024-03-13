@@ -7,11 +7,8 @@ Panels:
         - /Global Options1
         - /Status1
         - /Map1
-        - /Map1/Status1
-        - /Axes1/Status1
         - /TF1
         - /TF1/Tree1
-        - /TF1/Tree1/odom1
       Splitter Ratio: 0.8303393125534058
     Tree Height: 1576
   - Class: rviz/Selection
@@ -63,7 +60,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Map
-      Topic: /test_dream_gmapping/map
+      Topic: /map
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -85,6 +82,8 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
+        map:
+          Value: true
         odom:
           Value: true
       Marker Alpha: 1
@@ -94,16 +93,17 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
-          base_link:
-            {}
+        map:
+          odom:
+            base_link:
+              {}
       Update Interval: 0
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -127,7 +127,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.178656578063965
+      Distance: 7.4063825607299805
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -135,17 +135,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.8289483189582825
-        Y: 3.533722400665283
-        Z: -1.7287828922271729
+        X: -0.7334160208702087
+        Y: 2.7242026329040527
+        Z: -2.2538628578186035
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3897968530654907
+      Pitch: 0.9947972297668457
       Target Frame: <Fixed Frame>
-      Yaw: 4.831966876983643
+      Yaw: 4.701967239379883
     Saved: ~
 Window Geometry:
   Displays:

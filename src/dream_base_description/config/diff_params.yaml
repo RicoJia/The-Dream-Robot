@@ -39,6 +39,4 @@ k_trans:  0.8
 # Make sure these are added to diff_drive.gazebo.xacro
 commanded_wheel_vel_topic: "/commanded_wheel_velocity" #This is not namespaced TODO
 wheel_joint_pos_topic: "/dream/wheel_pos"
-map_frame_name: "map_ground_truth"
-base_link_frame_name: "base_link"
 encoder_pub_frequency: 30

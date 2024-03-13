@@ -32,7 +32,7 @@ struct TestableDreamOdometer : public DreamGMapping::DreamOdometer {
 public:
   ~TestableDreamOdometer() { odom_pub_.shutdown(); }
   explicit TestableDreamOdometer(ros::NodeHandle nh) : DreamOdometer(nh) {
-    odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>("odom", 1);
+    odom_pub_ = nh.advertise<std_msgs::Float32MultiArray>(WHEEL_POS_TOPIC, 1);
   }
 
   void
@@ -155,6 +155,9 @@ protected:
     nh.setParam("angular_active_threshold", ANGULAR_ACTIVE_THRESHOLD);
     nh.setParam("particle_num", SMALL_PARTICLE_NUM);
     nh.setParam("skip_invalid_beams", true);
+    nh.setParam("wheel_pos_topic", WHEEL_POS_TOPIC);
+    nh.setParam("scan_topic", SCAN_TOPIC);
+    nh.setParam("map_topic", MAP_TOPIC);
 
     dream_gmapper = new TestableDreamGMapper(nh);
     dream_odometer = new TestableDreamOdometer(nh);

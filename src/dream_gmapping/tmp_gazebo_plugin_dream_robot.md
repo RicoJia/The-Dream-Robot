@@ -158,12 +158,78 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
     - Why odom is at the bottom of the map, instead of at the center of the circle? Because you selected odom, but there's no tf for map-> odom. If selecting map, there will be.
     - Why there's points beyond the line? (not sure, changing the range to smaller made this issue go away)
     - publish map to odom tf (see the code)
+    - map to base not right.
+        - see particles across all runs, make it 1
+        - expect map to baselink to be identity
+            - it's not identity? (because we need to explicitly cast product inve * to eigen matrix)
+            - See the odom itself: the wall itself is great
+            - ICP didn't do a good job? (D)
+                ```
+                icp output: 0.984414 -0.17591        0 0.207735
+                 0.17591 0.984414        0 0.120956
+                       0        0        1        0
+                       0        0        0        1
+                ```
+            - what if we do icp on world frame points? No need, because two point clouds are already transformed into the same body frame
+            - observation model scoring is based on angle of beam, because you want to evaluate along each line: the phit, and the pfree
+                1. observation model: change to p_hit only (D)
+                2. lint (D)
+
+                0. Create a toggle. (skip_invalid_scans), signature (D)
+                1. fill_point_cloud (D)
+                2. When transforming to world frame, just do the (D)
+                3. adding the lines to the range_max ones?
+                    - observation model: just compare the valid ones. FUTURE IMPROVE: compare observation model with free points
+                    - reorg:
+                        1. add a vec cloud_occupied_vec, (then you have 2 vecs)
+                        2. scan message: (advantage: clean interface.)
+            - get rid of cloud_in_world_frame_vec
+    - map to base not right. (D)
+    - Make sure the max ranges are not registered, but the line all the way up to them are (D)
+- Reorg wheel_pos_topic?
+    - catkin make 
+    - catkin make test
+    - why constexpr const char* WHEEL_POS_TOPIC = "wheel_positions";?
+    - relaunch and check if subscription is done
+
+- Warning: TF_OLD_DATA ignoring data from the past (Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained) for frame base_link at time 522.938000 according to authority unknown_publisher (use_sim_time, --clock, -r 1)
+
+- Exception thrown:Could not find a connection between 'odom' and 'base_link' because they are not part of the same tree.Tf has two or more unconnected trees.
+    The current list of frames is:
+    Frame left_wheel exists with parent chassis.
+    Frame right_wheel exists with parent chassis.
+    Frame base_link exists with parent map_ground_truth.
+        - we need map_ground_truth as parent frame
+
+- odom -> based_link: 
+    - remove map and base link name
+    - Launch sim? add in readme
+    ```
+    source src/dream_mobile_platform/dream_feature_flags
+    SIM=true roslaunch dream_mobile_platform low_level_drivers.launch
+    ```
+
+    - record
+    rosbag record --bz2 /dream/scan /dream/wheel_pos /dream/map_groud_truth_pose
+
+- Try bringing up the bag again
+    - rosrun tf tf_echo odom base_link
+    - add rviz
+
+- configure gmapping
+    - verify on rviz, there's tf (D)
+    - how to run this: roslaunch dream_gmapping dream_gmapping.launch sim:=true (D)
+    - why doesn't echo laser scan: abs
+
+- neff?: score is too low. if it's empty, then what? should give it a non-zero low score. TODO?? Bmapping?
+    - contains (D)
+    - line end point was not gut. end point in world is too large: because there were an outlier in scan.
 
 - TODO
-    - map to base not right.
-    - Make sure the max ranges are not registered, but the line all the way up to them are
-    - log score? (TODO)
-    - double freeing problem?
+    - replay the bag
+        - launch file: odom, dream_gmapper; 
+        - takes in /dream/scan /dream/wheel_pos
+
 - Point not found? Give it a score? Check probablistic robotcs
 
 

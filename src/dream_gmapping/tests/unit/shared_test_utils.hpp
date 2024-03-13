@@ -19,6 +19,9 @@ constexpr double ANGULAR_ACTIVE_THRESHOLD = 0.1;
 constexpr double INITIAL_WALL_DIST = 1.0;
 constexpr double WALL_LENGTH = 1.0;
 constexpr double MAX_SCAN_RANGE = 3.0;
+const char *WHEEL_POS_TOPIC("wheel_positions");
+const char *SCAN_TOPIC("scan");
+const char *MAP_TOPIC("/map");
 
 // Creating a "wall" that's WALL_LENGTH long along the y axis at x=distance
 // The laser scan->frame on laser scan->with a. specified distance

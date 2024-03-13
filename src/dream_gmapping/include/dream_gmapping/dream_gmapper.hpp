@@ -40,7 +40,7 @@ protected:
   Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
   double resolution_;
   double beam_noise_variance_;
-  double log_prob_beam_not_found_in_kernel_;
+  double log_random_measurements_;
   double beam_kernel_size_;
   bool skip_invalid_beams_ = true;
 
