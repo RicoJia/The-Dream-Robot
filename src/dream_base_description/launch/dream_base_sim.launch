@@ -1,7 +1,7 @@
 <launch>
 
     <!-- to launch: dream_base_description dream_base_sim.launch view_only:=true  -->
-    <arg name="no_rviz" default="false"/>
+    <arg name="no_rviz" default="true"/>
     <env name="GAZEBO_MODEL_PATH" value="$(optenv GAZEBO_MODEL_PATH):$(find dream_base_description)"/>
 
     <!-- Combine joint values -->

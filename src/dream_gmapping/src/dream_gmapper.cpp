@@ -455,6 +455,7 @@ std::vector<unsigned int> DreamGMapper::get_resampled_indices(
 
 void DreamGMapper::add_scan_msg_to_map(Particle &p,
                                        const ScanMsgPtr &scan_msg) {
+  // TODO: this can be done outside
   PclCloudPtr cloud_in_body_frame_full(new pcl::PointCloud<pcl::PointXYZ>());
   bool filling_success = DreamGMapping::fill_point_cloud(
       scan_msg, cloud_in_body_frame_full, false);
@@ -472,9 +473,6 @@ void DreamGMapper::add_scan_msg_to_map(Particle &p,
   DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_full, resolution_);
   auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
       *p.pose_traj_.back(), resolution_);
-  // TODO: this is test code - clear map so we see what's added in the current
-  // scan
-  p.laser_point_accumulation_map_ = PointAccumulator();
 
   for (unsigned int i = 0; i < scan_msg->ranges.size(); ++i) {
     const double range = scan_msg->ranges.at(i);

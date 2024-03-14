@@ -229,7 +229,15 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
         - takes in /dream/scan /dream/wheel_pos
 
 - bag does not provide wheel_pos? - resetting the gazebo world just eliminates the publishers
+- scan to base_link tf?
+    - crashed? gdb; then run it and see (D)
+        - set_target_properties(dream_gmapper PROPERTIES COMPILE_FLAGS "-g")
+        - launch-prefix="gdb -ex run --args"
+    - Why so many empty lines? (odom not far enough)
+    - add scan tf lookup: 
+    - apply scan_to_body_frame
 
+- map not published correctly?
 - Point not found? Give it a score? Check probablistic robotcs
 
 

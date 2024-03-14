@@ -13,7 +13,7 @@
     <!-- Simulation -->
     <group if="$(arg sim)">
         <include file="$(find dream_base_description)/launch/dream_base_sim.launch">
-            <arg name="no_rviz" value="false"/>
+            <arg name="no_rviz" value="true"/>
         </include>
         <node pkg="dream_mobile_platform" type="keyboard_teleop.py" name="keyboard_teleop" output="screen"/>
     </group>
