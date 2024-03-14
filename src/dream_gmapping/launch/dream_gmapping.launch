@@ -9,7 +9,7 @@
         <param name="odom_frame" value="odom"/>
     </node>
 
-    <node name="dream_gmapper" type="dream_gmapper" pkg="dream_gmapping" output="screen">
+    <node name="dream_gmapper" type="dream_gmapper" pkg="dream_gmapping" output="screen" >
         <param name="base_frame" value="base_link"/>
         <param name="map_frame" value="map"/>
         <param name="map_update_interval" value="5"/>

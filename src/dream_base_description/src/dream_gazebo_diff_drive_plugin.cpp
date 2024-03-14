@@ -179,6 +179,10 @@ public:
     publish_period_ = 1.0 / encoder_pub_frequency;
     last_update_time_ = model_->GetWorld()->SimTime();
 
+    wheel_joints_[LEFT]->SetPosition(0, 0.0);
+    wheel_joints_[RIGHT]->SetPosition(0, 0.0);
+    ROS_INFO("Zero'ed out wheel joint positions");
+
     ROS_INFO("DreamGazeboDiffDrivePlugin loaded.");
   }
   // what's the frequency this gets called?
@@ -198,13 +202,14 @@ public:
       // wheel vel published in m/s
       ros::Time current_time = ros::Time::now();
       auto wheel_joint_msg = std_msgs::Float32MultiArray();
+
       for (unsigned int i = 0; i < wheel_joints_.size(); i++) {
         wheel_joint_msg.data.push_back(
             SimpleRoboticsCppUtils::normalize_angle_2PI(
-                wheel_joints_[i]->Position(0)
-
-                    ));
+                wheel_joints_[i]->Position(0)));
       }
+      // right wheel is negative
+      wheel_joint_msg.data[1] *= -1;
       wheel_joint_states_pub_.publish(wheel_joint_msg);
       // publish odomground_truth
       ignition::math::Pose3d odom = model_->WorldPose();

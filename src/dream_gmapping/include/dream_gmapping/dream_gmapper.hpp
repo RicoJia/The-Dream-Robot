@@ -30,6 +30,7 @@ protected:
   std::string base_frame_ = "base_link";
   std::string map_frame_ = "map";
   std::string odom_frame_ = "odom";
+  std::string scan_frame_ = "scan";
   double map_update_interval_ = 0.1; // 10 hz
   double max_range_;
   int particle_num_ = 50;
@@ -54,8 +55,8 @@ protected:
   tf2_ros::TransformBroadcaster br_;
   geometry_msgs::TransformStamped map_to_odom_tf_;
 
-  // TODO: to demolish
   Eigen::Matrix4d last_odom_pose_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d base_to_scan_ = Eigen::Matrix4d::Zero();
 
   PclCloudPtr last_cloud_{new pcl::PointCloud<pcl::PointXYZ>()};
   std::vector<DreamGMapping::Particle> particles_;
@@ -76,6 +77,8 @@ protected:
   void initialize_map();
 
   void initialize_motion_set();
+
+  bool initialize_base_to_scan();
 
   // get the most recent odom -> draw a new noise -> go through all particles,
   void store_last_scan(

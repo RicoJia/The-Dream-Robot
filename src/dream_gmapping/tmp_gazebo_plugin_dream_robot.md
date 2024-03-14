@@ -221,14 +221,14 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
     - how to run this: roslaunch dream_gmapping dream_gmapping.launch sim:=true (D)
     - why doesn't echo laser scan: abs
 
-- neff?: score is too low. if it's empty, then what? should give it a non-zero low score. TODO?? Bmapping?
+- neff?: score is too low. if it's empty, then what? should give it a non-zero low score. Bmapping?
     - contains (D)
     - line end point was not gut. end point in world is too large: because there were an outlier in scan.
-
-- TODO
     - replay the bag
         - launch file: odom, dream_gmapper; 
         - takes in /dream/scan /dream/wheel_pos
+
+- bag does not provide wheel_pos? - resetting the gazebo world just eliminates the publishers
 
 - Point not found? Give it a score? Check probablistic robotcs
 

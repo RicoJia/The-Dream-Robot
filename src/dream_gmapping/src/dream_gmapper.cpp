@@ -63,6 +63,7 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
   nh_.getParam("base_frame", base_frame_);
   nh_.getParam("map_frame", map_frame_);
   nh_.getParam("odom_frame", odom_frame_);
+  nh_.getParam("scan_frame", scan_frame_);
   nh_.getParam("map_update_interval", map_update_interval_);
 
   nh_.getParam("max_range", max_range_);
@@ -162,6 +163,24 @@ void DreamGMapper::initialize_motion_set() {
   motion_set_[4](1, 3) -= resolution_;
 }
 
+bool DreamGMapper::initialize_base_to_scan() {
+  if (base_to_scan_.isApprox(Eigen::Matrix4d::Zero())) {
+    try {
+      auto base_to_scan_tf =
+          tf_buffer_.lookupTransform(base_frame_, scan_frame_, ros::Time(0));
+      Eigen::Affine3d transform_eigen =
+          tf2::transformToEigen(base_to_scan_tf.transform);
+      base_to_scan_ = transform_eigen.matrix();
+      base_to_scan_(2, 3) = 0.0; // setting z to 0
+      std::cout << "base_to_scan_:" << std::endl << base_to_scan_ << std::endl;
+    } catch (tf2::TransformException &e) {
+      ROS_WARN("%s", e.what());
+      return false;
+    }
+  }
+  return true;
+}
+
 void DreamGMapper::laser_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
   // - wait for the first scan message, get tf;
@@ -181,11 +200,15 @@ void DreamGMapper::laser_scan(
     return;
   }
 
+  if (!initialize_base_to_scan())
+    return;
+
   if (!received_first_laser_scan_) {
     // Store the laser->base transform
     received_first_laser_scan_ = true;
     store_last_scan(scan_msg, skip_invalid_beams_);
-    ROS_DEBUG_STREAM("Received first laser scan");
+    ROS_INFO_STREAM("Received first laser scan");
+    std::cout << "Received first laser scan" << std::endl;
     // We are not storing the odom here, because that will be used for icp next
     return;
   }
@@ -201,6 +224,10 @@ void DreamGMapper::laser_scan(
   double delta_theta =
       atan2(T_delta(1, 0), T_delta(0, 0)); // Rotation around Z-axis
 
+  // TODO
+  std::cout << "delta_translation, delta_rotation: " << delta_translation << ","
+            << delta_theta << std::endl;
+
   // If odom, angular distance is not enough, skip.
   if (std::abs(delta_translation) < translation_active_threshold_ &&
       std::abs(delta_theta) < angular_active_threshold_)
@@ -214,6 +241,8 @@ void DreamGMapper::laser_scan(
     ROS_WARN("Failed to fill point cloud");
     return;
   };
+  cloud_in_body_frame = DreamGMapping::transform_point_cloud_eigen4d(
+      base_to_scan_, cloud_in_body_frame);
 
   // - icp: scan match, get initial guess
   Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
@@ -235,10 +264,10 @@ void DreamGMapper::laser_scan(
     // TODO: do we need to add noise here??
     new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
         particle.pose_traj_.back()->to_se3() * T_delta);
-    cloud_in_world_frame = DreamGMapping::get_point_cloud_in_world_frame(
+    cloud_in_world_frame = DreamGMapping::transform_point_cloud(
         new_pose_estimate, cloud_in_body_frame);
     DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
-
+    // TODO
     // // In the if clause, we need: score, the new pose and the new point cloud
     // in
     // // world frame
@@ -254,7 +283,7 @@ void DreamGMapper::laser_scan(
     //   // TODO: do we need to add noise here??
     //   new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
     //       particle.pose_traj_.back()->to_se3() * T_delta);
-    //   cloud_in_world_frame = DreamGMapping::get_point_cloud_in_world_frame(
+    //   cloud_in_world_frame = DreamGMapping::transform_point_cloud(
     //       new_pose_estimate, cloud_in_body_frame);
     //   DreamGMapping::pixelize_point_cloud(cloud_in_world_frame, resolution_);
     // }
@@ -309,9 +338,8 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
     // we are comparing the valid point cloud
     DreamGMapping::fill_point_cloud(scan_msg, cloud_in_world_frame_pixelized,
                                     skip_invalid_beams_);
-    cloud_in_world_frame_pixelized =
-        DreamGMapping::get_point_cloud_in_world_frame(
-            new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
+    cloud_in_world_frame_pixelized = DreamGMapping::transform_point_cloud(
+        new_pose_estimate_neighbor, cloud_in_world_frame_pixelized);
     DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_pixelized,
                                         resolution_);
     // observation model
@@ -434,12 +462,19 @@ void DreamGMapper::add_scan_msg_to_map(Particle &p,
     ROS_WARN("Failed to fill point cloud");
     return;
   }
-  auto cloud_in_world_frame_full =
-      DreamGMapping::get_point_cloud_in_world_frame(
-          p.pose_traj_.back()->to_se3(), cloud_in_body_frame_full);
+  cloud_in_body_frame_full = DreamGMapping::transform_point_cloud_eigen4d(
+      base_to_scan_, cloud_in_body_frame_full);
+  auto cloud_in_world_frame_full = DreamGMapping::transform_point_cloud(
+      p.pose_traj_.back()->to_se3(), cloud_in_body_frame_full);
+  // TEST: changing to cloud_in_body_frame. If the map rotates and moves with
+  // the robot, then we are good with the body frame
+  //  cloud_in_world_frame_full = cloud_in_body_frame_full;
   DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_full, resolution_);
   auto pose_pixelized = SimpleRoboticsCppUtils::Pixel2DWithCount(
       *p.pose_traj_.back(), resolution_);
+  // TODO: this is test code - clear map so we see what's added in the current
+  // scan
+  p.laser_point_accumulation_map_ = PointAccumulator();
 
   for (unsigned int i = 0; i < scan_msg->ranges.size(); ++i) {
     const double range = scan_msg->ranges.at(i);

@@ -209,13 +209,19 @@ inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
 }
 
 inline PclCloudPtr
-get_point_cloud_in_world_frame(const SimpleRoboticsCppUtils::Pose2D &pose,
-                               const PclCloudPtr cloud_in_body_frame) {
-  auto pose_eigen4d = pose.to_se3();
-  PclCloudPtr cloud_in_world_frame{new pcl::PointCloud<pcl::PointXYZ>()};
-  pcl::transformPointCloud(*cloud_in_body_frame, *cloud_in_world_frame,
+transform_point_cloud_eigen4d(const Eigen::Matrix4d &pose_eigen4d,
+                              const PclCloudPtr cloud_in_body_frame) {
+  PclCloudPtr transformed_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
+  pcl::transformPointCloud(*cloud_in_body_frame, *transformed_cloud,
                            pose_eigen4d);
-  return cloud_in_world_frame;
+  return transformed_cloud;
+}
+
+inline PclCloudPtr
+transform_point_cloud(const SimpleRoboticsCppUtils::Pose2D &pose,
+                      const PclCloudPtr cloud_in_body_frame) {
+  auto pose_eigen4d = pose.to_se3();
+  return transform_point_cloud_eigen4d(pose_eigen4d, cloud_in_body_frame);
 }
 
 /**

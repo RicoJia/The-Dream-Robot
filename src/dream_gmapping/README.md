@@ -16,7 +16,7 @@ roslaunch dream_gmapping dream_gmapping.launch sim:=true
 - Record Bags
 
 ```bash
-rosbag record --bz2 /dream/scan /dream/wheel_pos /dream_gazebo_client/map_groud_truth_pose
+rosbag record --bz2 /dream/scan /dream/wheel_pos /dream_gazebo_client/map_groud_truth_pose /tf/ /tf_static
 ```
 
 ## Assumptions

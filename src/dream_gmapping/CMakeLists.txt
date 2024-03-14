@@ -21,6 +21,7 @@ catkin_package()
 
 file(GLOB src_files "src/main.cpp" "src/dream_gmapper.cpp")
 add_executable(dream_gmapper ${src_files})
+set_target_properties(dream_gmapper PROPERTIES COMPILE_FLAGS "-g")
 
 file(GLOB odom_src_files "src/odom_main.cpp")
 add_executable(${PROJECT_NAME}_odometer ${odom_src_files})
