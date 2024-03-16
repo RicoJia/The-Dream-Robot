@@ -21,11 +21,11 @@ using SimpleRoboticsCppUtils::Pose2D;
 
 class PointAccumulator {
 private:
+public:
+  // TODO to move this back to private
   // { long: {<x,y>, count}} = 8 + 4 + 4 + 4 = 20 bytes. That translates to 20MB
   // of memory. In reality, 67MB for 100 Particles, 10000 points
   std::unordered_map<long, Pixel2DWithCount> count_map_;
-
-public:
   inline void add_point(const unsigned int &x, const unsigned int &y,
                         bool is_hit) {
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
@@ -187,13 +187,13 @@ inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
   // pcl will try to align source to target. That's counter to our motion
   icp.setInputCloud(curr_scan);
   icp.setInputTarget(prev_scan);
-  icp.setMaximumIterations(1500);        // A higher number of iterations
-  icp.setTransformationEpsilon(1e-6);    // A smaller convergence threshold
-  icp.setMaxCorrespondenceDistance(0.1); // TODO?
+  icp.setMaximumIterations(2500);         // A higher number of iterations
+  icp.setTransformationEpsilon(1e-8);     // A smaller convergence threshold
+  icp.setMaxCorrespondenceDistance(0.05); // TODO?
   icp.setRANSACOutlierRejectionThreshold(0.05);
   // potentially decrease in a loop
   icp.setEuclideanFitnessEpsilon(
-      1e-5); // A smaller distance threshold for stopping
+      1e-8); // A smaller distance threshold for stopping
   pcl::PointCloud<pcl::PointXYZ> output;
   // Documentation on T_init_guess being float typed sucked - I haven't seen it
   auto T_init_guess = T_init_guess_double.cast<float>();

@@ -11,7 +11,7 @@ constexpr double D_V_STD_DEV = 0.1;
 constexpr double D_THETA_STD_DEV = 0.1;
 constexpr double RESOLUTION = 0.05;
 constexpr double BEAM_NOISE_VARIANCE = 0.02;
-constexpr double BEAM_KERNEL_SIZE = 0.05;
+constexpr double HALF_BEAM_KERNEL_SIZE = 3;
 // unsigned int is not natively supported by ROS
 constexpr int MAP_SIZE_IN_METERS = 10.0;
 constexpr double TRANSLATION_ACTIVE_THRESHOLD = 0.1;

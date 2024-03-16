@@ -149,7 +149,7 @@ protected:
     nh.setParam("d_theta_std_dev", D_THETA_STD_DEV);
     nh.setParam("resolution", RESOLUTION);
     nh.setParam("beam_noise_variance", BEAM_NOISE_VARIANCE);
-    nh.setParam("beam_kernel_size", BEAM_KERNEL_SIZE);
+    nh.setParam("half_beam_kernel_size", HALF_BEAM_KERNEL_SIZE);
     nh.setParam("map_size_in_meters", MAP_SIZE_IN_METERS);
     nh.setParam("translation_active_threshold", TRANSLATION_ACTIVE_THRESHOLD);
     nh.setParam("angular_active_threshold", ANGULAR_ACTIVE_THRESHOLD);

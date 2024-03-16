@@ -1,7 +1,9 @@
 #pragma once
 #include "dream_gmapping/dream_gmapping_utils.hpp"
+#include "ros/publisher.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include <cmath>
+#include <eigen3/Eigen/src/Core/Matrix.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <memory>
 #include <message_filters/subscriber.h>
@@ -41,9 +43,12 @@ protected:
   Eigen::Vector3d motion_means_{Eigen::Vector3d::Zero()};
   double resolution_;
   double beam_noise_variance_;
-  double log_random_measurements_;
-  double beam_kernel_size_;
+  double prob_not_found_;
+  double half_beam_kernel_size_;
   bool skip_invalid_beams_ = true;
+  bool publish_debug_scan_ = false;
+  ros::Publisher last_cloud_debug_scan_pub_;
+  ros::Publisher current_cloud_debug_scan_pub_;
 
   // inconfigurable parameters
   // no need to store
@@ -64,8 +69,7 @@ protected:
   std::vector<Eigen::Matrix4d> neighbor_transforms_;
   std::vector<Eigen::Matrix4d> motion_set_;
   unsigned int best_particle_index_ = 0;
-  std::vector<char> beam_search_kernel_ =
-      std::vector<char>(2 * beam_kernel_size_ + 1, 0);
+  std::vector<int> beam_search_kernel_;
 
   unsigned int map_size_;
   unsigned int origin_offset_;
@@ -86,10 +90,15 @@ protected:
       const bool &skip_invalid_beams);
   void store_last_scan(PclCloudPtr to_update);
 
+  void publish_debug_scans(PclCloudPtr last_cloud, PclCloudPtr current_cloud);
+
+  bool get_odom_to_base(Eigen::Matrix4d &T_delta,
+                        Eigen::Matrix4d &current_odom_pose);
+
   std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
   optimize_after_icp(const DreamGMapping::Particle &particle,
                      const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
-                     ScanMsgPtr scan_msg);
+                     PclCloudPtr cloud_in_body_frame);
 
   /**
    * @brief Score a point cloud in world frame pixels based on a gaussian
@@ -124,3 +133,78 @@ protected:
   void publish_map_and_tf();
 };
 } // namespace DreamGMapping
+
+/**
+ * ********************************************************************************
+ * GRAVEYARD
+ * ********************************************************************************
+ */
+// Problem with this method is: cloud_in_world_frame_pixelized does not have the
+// same number of elements as scan_msg double
+// DreamGMapper::observation_model_score(
+//     PclCloudPtr cloud_in_world_frame_pixelized, ScanMsgPtr scan_msg,
+//     const Pose2D &pose_estimate,
+//     const PointAccumulator &laser_point_accumulation_map) {
+//   double score = 0;
+//   Pixel2DWithCount pose_estimated_pixelized =
+//       Pixel2DWithCount(pose_estimate, resolution_);
+
+//   // go over all scan message, and their angle
+//   for (double angle = scan_msg->angle_min, i = 0; i <
+//   scan_msg->ranges.size();
+//        i++, angle += scan_msg->angle_increment) {
+//     auto endpoint = cloud_in_world_frame_pixelized
+//                         ->points[i]; // x, y in world frame, pixelized
+//     auto endpoint_pixel = Pixel2DWithCount(endpoint.x, endpoint.y);
+//     auto p_free_offset =
+//     SimpleRoboticsCppUtils::get_unit_vector_endpoint_pixel(
+//         endpoint_pixel, pose_estimated_pixelized);
+//     // Pre-compute the kernel. [0, 1, -1, 2, -2], use it in both xx and yy
+//     // directions. Find the pixelized p_hit given
+//     // We go over a 2D kernel layer by layer. Each layer goes around a
+//     square,
+//     // like [1, 0], [1,1], [1,-1], [] something like (2,4) before even going
+//     to bool match_found = false; double resolution_squared = resolution_ *
+//     resolution_; for (const char &xx : beam_search_kernel_) {
+//       for (unsigned int i = 0;
+//            std::abs(beam_search_kernel_.at(i)) < std::abs(xx) &&
+//            i < beam_search_kernel_.size();
+//            i++) {
+//         const char &yy = beam_search_kernel_[i];
+//         // find p_hit and p_free right in front of it.
+//         auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
+//         auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
+//                                        p_hit.y + p_free_offset.y);
+//         // what do you do when the point is unknown yet - just score?
+//         // If p_hit is full or p_hit is a max, but p_free is not, then we
+//         have a
+//         // match, then score (2 * 2000 lookups) and quit. TODO: is_full
+//         returns
+//         // false even on unknown pixels
+//         if (!laser_point_accumulation_map.is_full(p_free) &&
+//             (laser_point_accumulation_map.is_full(p_hit) ||
+//              scan_msg->ranges[i] == scan_msg->range_max)) {
+//           // compute the log score of the single beam match
+//           score +=
+//               -(xx * xx + yy * yy) * resolution_squared /
+//               beam_noise_variance_;
+//           match_found = true;
+//           break;
+//         }
+//       }
+//     }
+//     // TODO
+//     // std::cout<<"observation_model_score, after kernel search:
+//     // log"<<score<<std::endl; If not found, add multiply
+//     // exp(-1*kernel_size_^2/sigma), PRECOMPUTED
+//     if (!match_found) {
+//       score += prob_not_found_;
+//       //   //TODO
+//       //   std::cout<<"observation_model_score, not found:
+//       //   log"<<score<<std::endl;
+//     }
+//   }
+
+//   // take exponential of the sum score
+//   return std::exp(score);
+// }

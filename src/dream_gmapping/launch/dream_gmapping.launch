@@ -13,14 +13,14 @@
         <param name="base_frame" value="base_link"/>
         <param name="map_frame" value="map"/>
         <param name="map_update_interval" value="5"/>
-        <param name="particle_num" value="10"/>
+        <param name="particle_num" value="1"/>
         <param name="angular_active_threshold" value="0.1"/>
 
-        <param name="d_v_std_dev" value="0.02"/>
-        <param name="d_theta_std_dev" value="0.02"/>
+        <param name="d_v_std_dev" value="0.001"/>
+        <param name="d_theta_std_dev" value="0.001"/>
         <param name="resolution" value="0.05"/>
         <param name="beam_noise_variance" value="0.1"/>
-        <param name="beam_kernel_size" value="3"/>
+        <param name="half_beam_kernel_size" value="3"/>
         <param name="skip_invalid_beams" value="true"/>
 
         <!-- params for sim -->
@@ -29,6 +29,8 @@
         <param name="scan_topic" value="/dream/scan"/>
         <param name="map_topic" value="/map"/>
         <param name="map_size_in_meters" value="20"/>
+        <param name="publish_debug_scan" value="true"/>
+        
     </node>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dream_gmapping)/rviz/view_dream_gmapper.rviz"/>
 </launch>
