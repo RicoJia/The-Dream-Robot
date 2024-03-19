@@ -51,6 +51,7 @@ for each particle:
     2. Generate N uniformly distributed numbers. where does that land? You reproduce 
     3. Store the most voted particle
 3. If neff is not small: go through the normalized weights and find the heaviest one
+    - Neff is a measure of how scatterred our guesses are. They could be all bad
 
 ### update map
 1. create_map(): go through a particle's dict, if count is higher than threshold, put on the map
@@ -240,6 +241,17 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
 - map not published correctly?
 - Point not found? Give it a score? Check probablistic robotcs
 
+
+### Improvements
+- Neff is a measure of how scatterred our guesses are. They could be all bad
+- Why does particles not picking up the right pose?
+    - Resampling is not eliminating bad particles? Test: rotation, with lots of particles.
+        - penalty for not picking up the ray seems  not low enough;
+        - overall score is still low. A better metric?
+            a not found score : 1.02^-15.12 = 0.74 
+    - Motion model is kind of bad. If it's bad,  Map that has been built is also bad (TODO)
+        - using correction_kernel = 3 does seem to bring up an improvement. Going up may be saturated
+- Try gmapping
 
 ### Optional Improvement 1: Motion Model Reorg
 

@@ -21,11 +21,12 @@ using SimpleRoboticsCppUtils::Pose2D;
 
 class PointAccumulator {
 private:
-public:
   // TODO to move this back to private
   // { long: {<x,y>, count}} = 8 + 4 + 4 + 4 = 20 bytes. That translates to 20MB
   // of memory. In reality, 67MB for 100 Particles, 10000 points
   std::unordered_map<long, Pixel2DWithCount> count_map_;
+
+public:
   inline void add_point(const unsigned int &x, const unsigned int &y,
                         bool is_hit) {
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
@@ -46,10 +47,12 @@ public:
    *
    * @param p
    */
-  inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
+  inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p,
+                      const double occupied_fullness_threshold = 0.5) const {
     auto [hit_count, total_count] = get_counts(p.x, p.y);
     // We set 0.5 as known/unknown boundary.
-    return (hit_count << 1) > total_count;
+    return static_cast<double>(total_count) * occupied_fullness_threshold <
+           static_cast<double>(hit_count);
   }
 
   inline bool

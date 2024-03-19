@@ -49,6 +49,7 @@ protected:
   bool publish_debug_scan_ = false;
   ros::Publisher last_cloud_debug_scan_pub_;
   ros::Publisher current_cloud_debug_scan_pub_;
+  double occupied_fullness_threshold_;
 
   // inconfigurable parameters
   // no need to store
@@ -80,7 +81,7 @@ protected:
 
   void initialize_map();
 
-  void initialize_motion_set();
+  void initialize_motion_set(const int &initialize_motion_set);
 
   bool initialize_base_to_scan();
 
@@ -208,3 +209,49 @@ protected:
 //   // take exponential of the sum score
 //   return std::exp(score);
 // }
+
+//   if (icp_converge) {
+//     // TODO: to add this to non-convergence case
+//     // add motion noise and update.
+//     // This method takes in theta and translation. But it should be
+//     real
+//     // screw motion
+//     auto [motion_score, new_motion_pose] =
+//         SimpleRoboticsCppUtils::draw_from_icc(
+//             *particle.pose_traj_.back(), {delta_translation,
+//             delta_theta}, motion_covariances_);
+//     *particle.pose_traj_.back() = new_motion_pose;
+//     // Unit-testble optimization function
+//     auto [m, s, c] =
+//         optimize_after_icp(particle, T_icp_output,
+//         cloud_in_body_frame);
+//     score = s;
+//     new_pose_estimate = m;
+//     cloud_in_world_frame = c;
+//     // TODO
+//     std::cout << "score in icp case: " << score << std::endl;
+//     std::cout << "icp corrected pose: " << std::endl
+//               << new_pose_estimate << std::endl;
+//   } else {
+//     score = particle.weight_;
+//     // TODO: do we need to add noise here??
+//     new_pose_estimate = SimpleRoboticsCppUtils::Pose2D(
+//         particle.pose_traj_.back()->to_se3() * T_delta);
+//     // TODO: cloud_in_world_frame is not being used here
+//     cloud_in_world_frame = DreamGMapping::transform_point_cloud(
+//         new_pose_estimate, cloud_in_body_frame);
+//     DreamGMapping::pixelize_point_cloud(cloud_in_world_frame,
+//     resolution_);
+//   }
+
+// // - icp: scan match, get initial guess
+// Eigen::Matrix4d T_icp_output = Eigen::Matrix4d::Identity();
+// bool icp_converge = scan_msg->ranges.size() != 0 &&
+//                     DreamGMapping::icp_2d(last_cloud_,
+//                     cloud_in_body_frame,
+//                                           T_delta, T_icp_output);
+// publish_debug_scans(last_cloud_, cloud_in_body_frame);
+
+// //TODO
+// std::cout<<"current odom: "<<std::endl<<current_odom_pose<<std::endl;
+// std::cout << "icp output: " << std::endl << T_icp_output << std::endl;

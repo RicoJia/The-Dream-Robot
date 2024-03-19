@@ -19,6 +19,8 @@ roslaunch dream_gmapping dream_gmapping.launch sim:=true
 rosbag record --bz2 /dream/scan /dream/wheel_pos /dream_gazebo_client/map_groud_truth_pose /tf/ /tf_static
 ```
 
+- Replay bags: `rosbag play --clock -r <RATE_IN_HZ> <BAG_NAME>`
+
 ## Assumptions
 
 1. Since the number of lidar points could vary from brand to brand, model to model, and even from frequency to frequency,
