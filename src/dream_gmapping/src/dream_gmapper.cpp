@@ -159,6 +159,7 @@ void DreamGMapper::initialize_map() {
 
   map_to_odom_tf_.header.frame_id = "map";
   map_to_odom_tf_.child_frame_id = "odom";
+  map_to_odom_tf_.transform.rotation.w = 1.0;
 }
 
 void DreamGMapper::initialize_motion_set(
@@ -275,6 +276,8 @@ void DreamGMapper::laser_scan(
     received_first_laser_scan_ = true;
     ROS_INFO_STREAM("Received first laser scan");
     std::cout << "Received first laser scan" << std::endl;
+    publish_map();
+    store_last_scan(cloud_in_body_frame);
   } else {
     // If odom, angular distance is not enough, skip.
     if (std::abs(delta_translation) < translation_active_threshold_ &&
@@ -283,31 +286,37 @@ void DreamGMapper::laser_scan(
     last_odom_pose_ = current_odom_pose;
 
     for (auto &particle : particles_) {
-      double score;
       // In the if clause, we need: score, the new pose and the new point cloud
       // in world frame
 
-      auto [motion_score, new_motion_pose] =
-          SimpleRoboticsCppUtils::draw_from_icc(
-              *particle.pose_traj_.back(), {delta_translation, delta_theta},
-              motion_covariances_);
+      //   auto [motion_score, new_motion_pose] =
+      // TODO: Better noise model
+      auto new_motion_pose = current_odom_pose;
+      //   SimpleRoboticsCppUtils::draw_from_icc(
+      //       *particle.pose_traj_.back(), {delta_translation, delta_theta},
+      //       motion_covariances_);
       *particle.pose_traj_.back() = new_motion_pose;
-      // Unit-testble optimization function
-      auto [m, s, c] =
-          optimize_after_icp(particle, T_delta, cloud_in_body_frame);
-      score = s;
-      new_pose_estimate = m;
-      cloud_in_world_frame = c;
+    }
 
-      particle.pose_traj_.back() =
-          std::make_shared<SimpleRoboticsCppUtils::Pose2D>(new_pose_estimate);
-      particle.weight_ = score;
+    if ((ros::Time::now() - last_map_update_).toSec() > map_update_interval_) {
+      for (auto &particle : particles_) {
+        // Unit-testble optimization function
+        auto [m, s, c] =
+            optimize_after_icp(particle, T_delta, cloud_in_body_frame);
+        double score = s;
+        new_pose_estimate = m;
+        cloud_in_world_frame = c;
+
+        particle.pose_traj_.back() =
+            std::make_shared<SimpleRoboticsCppUtils::Pose2D>(new_pose_estimate);
+        particle.weight_ = score;
+      }
+      resample_if_needed_and_update_particle_map_and_find_best_pose(scan_msg);
+      publish_map();
+      store_last_scan(cloud_in_body_frame);
     }
   }
 
-  resample_if_needed_and_update_particle_map_and_find_best_pose(scan_msg);
-  publish_map_and_tf();
-  store_last_scan(cloud_in_body_frame);
   ros::Duration delta = ros::Time::now() - current_time;
   // TODO
   std::cout << "time delta: " << delta.toSec() << std::endl;
@@ -587,7 +596,7 @@ void DreamGMapper::
 }
 
 // Our map is a fixed size one, sizing-up is currently not supported
-void DreamGMapper::publish_map_and_tf() {
+void DreamGMapper::publish_map() {
   // get the best pose
   const auto &best_particle = particles_.at(best_particle_index_);
   map_.header.stamp = ros::Time::now();
@@ -605,10 +614,18 @@ void DreamGMapper::publish_map_and_tf() {
   //   std::cout << "map to odom: " << map_to_odom << std::endl;
 
   const Eigen::Isometry3d map_to_odom_iso(map_to_odom);
-  map_to_odom_tf_.header.stamp = ros::Time::now();
   geometry_msgs::TransformStamped tmp_tf_ =
       tf2::eigenToTransform(map_to_odom_iso);
+  map_mutex_.lock();
   map_to_odom_tf_.transform = tmp_tf_.transform;
+  map_mutex_.unlock();
+  last_map_update_ = ros::Time::now();
+}
+
+void DreamGMapper::publish_tf() {
+  map_mutex_.lock();
+  map_to_odom_tf_.header.stamp = ros::Time::now();
   br_.sendTransform(map_to_odom_tf_);
+  map_mutex_.unlock();
 }
 } // namespace DreamGMapping

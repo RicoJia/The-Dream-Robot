@@ -26,6 +26,7 @@ public:
   */
   void
   laser_scan(const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg);
+  void publish_tf();
 
 protected:
   // configurable parameters
@@ -76,6 +77,8 @@ protected:
   unsigned int origin_offset_;
   ros::Publisher map_pub_;
   nav_msgs::OccupancyGrid map_;
+  ros::Time last_map_update_;
+  std::mutex map_mutex_;
 
   // TODO: docstrings
 
@@ -131,7 +134,7 @@ protected:
   void add_scan_msg_to_map(Particle &p, const ScanMsgPtr &scan_msg);
   void resample_if_needed_and_update_particle_map_and_find_best_pose(
       const ScanMsgPtr &scan_msg);
-  void publish_map_and_tf();
+  void publish_map();
 };
 } // namespace DreamGMapping
 

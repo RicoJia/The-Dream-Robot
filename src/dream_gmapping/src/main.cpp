@@ -8,6 +8,11 @@ int main(int argc, char **argv) {
   DreamGMapping::DreamGMapper dg(nh_);
 
   // For simplicity, we are using a single threaded model for subscribers
-  ros::spin();
+  ros::Rate r(10);
+  while (!ros::isShuttingDown()) {
+    dg.publish_tf();
+    ros::spinOnce();
+    r.sleep();
+  }
   return 0;
 }
