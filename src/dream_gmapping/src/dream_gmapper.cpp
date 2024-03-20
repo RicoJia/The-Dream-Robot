@@ -276,6 +276,7 @@ void DreamGMapper::laser_scan(
     received_first_laser_scan_ = true;
     ROS_INFO_STREAM("Received first laser scan");
     std::cout << "Received first laser scan" << std::endl;
+    resample_if_needed_and_update_particle_map_and_find_best_pose(scan_msg);
     publish_map();
     store_last_scan(cloud_in_body_frame);
   } else {
@@ -610,8 +611,6 @@ void DreamGMapper::publish_map() {
   //   std::cout << "map to baselink: " << map_to_baselink << std::endl;
   //   // TODO
   //   std::cout << "last_odom_pose: " << last_odom_pose_ << std::endl;
-  //   // TODO
-  //   std::cout << "map to odom: " << map_to_odom << std::endl;
 
   const Eigen::Isometry3d map_to_odom_iso(map_to_odom);
   geometry_msgs::TransformStamped tmp_tf_ =

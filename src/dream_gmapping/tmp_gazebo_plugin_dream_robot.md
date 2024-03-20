@@ -251,7 +251,34 @@ odometry workflow: ticks -> tick wrap -> wheel angle |-> unwrapped angle -> tf (
             a not found score : 1.02^-15.12 = 0.74 
     - Motion model is kind of bad. If it's bad,  Map that has been built is also bad (TODO)
         - using correction_kernel = 3 does seem to bring up an improvement. Going up may be saturated
-- Try gmapping
+launch-prefix="valgrind --tool=callgrind --callgrind-out-file='callgrind.dream_gmapping.%p'"
+
+1. ROS Gmapping Live Investigation:
+    - time for the whole trip
+        - Why particles don't change much
+            - TODO: how is their resampling doing?
+                2. I barely see any resampling TODO: 
+                    - check m_neff
+            - Are we using motion model at all?
+            - How do we correct? score is over 300
+            - scan is [max, ... ]
+
+    - TODO List
+        - particle update 
+            - do it every map update interval (5s) as well. In other times, we just display odom (no /map -> /odom update). So for search kernel = 1, particle num = 30, a performance of 0.5s per update is good. 
+            - particle poses and weight:
+                1. scan match
+                     - step 1
+                     (-0.000910683,0.00305944,-1.57053), 331.994
+                     (0.000321912,0.00464879,-1.56982), 332.019
+                     - step 2
+                         (-0.132281,0.0134467,-1.57307)
+                         (-0.131683,0.0137762,-1.57291)
+
+        - observation scoring:
+            - TODO: add exp(-1./m_gaussianSigma*bestMu*bestMu), where m_gaussianSigma is 0.05, and bestMu is <0.01
+            - skip rays beyond usable range (max_range, or min_range) kernel size is 1
+            - TODO: find the best mu, compare that with your current mu!!!
 
 ### Optional Improvement 1: Motion Model Reorg
 
