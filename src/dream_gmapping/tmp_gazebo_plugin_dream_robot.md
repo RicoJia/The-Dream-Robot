@@ -255,13 +255,40 @@ launch-prefix="valgrind --tool=callgrind --callgrind-out-file='callgrind.dream_g
 
 1. ROS Gmapping Live Investigation:
     - time for the whole trip
+        - motion validation
+            - 1 particle, zero motion drawing is still ok. So with motion drawing, it's an add on. Its correction is really the key here.
+                ```
+                correction: (-3.09696,0.773438,1.34169) -> (-3.16102,0.803125,1.19169)
+                ```
+            - is our 0.05 too coarse?? Gmapping's scan matching is the biggest factor that made it successful. It performs **(gradient descent)**
+                1. have 0.05 as gain. 
+                2. move in 6 directions from the current pose, find the best scoring onem then set it to current pose
+                3. from the new current pose, if currentScore >= best score, keep going. Otherwise, a_local, l_local is divided in halves 
+                4. Repeat 2
+
+            - Scoring
+                - what's the laser beam? Could it be "if 1 miss is costing too much? So kernel misses do not triamph?"
+
+    - Secondary factors
         - Why particles don't change much
-            - TODO: how is their resampling doing?
-                2. I barely see any resampling TODO: 
-                    - check m_neff
+            - I barely see any resampling  
             - Are we using motion model at all?
             - How do we correct? score is over 300
             - scan is [max, ... ]
+        - **compare occupied cells, where what's each cell's hit, etc. if they are obstacle between each run** 
+            - map cells from the current laser scan corresponds well with the laser points
+            - map cells from the first run could be used for good localization
+        - How are obstacles added? Why do they not vanish
+                - register scan
+                ```
+                // scanmatcher.cpp, this could be interesting
+                PointAccumulator &cell = map.cell(line.points[i]);
+                ```
+                - void SlamGMapping::updateMap(const sensor_msgs::LaserScan &scan) TODO
+
+        - How noise is added? (not major)
+            - motion model (motion model is effective. and the motion noises are small. But this is not the foundamental reason for stable mapping)
+            - How is motion model useful
 
     - TODO List
         - particle update 
@@ -276,7 +303,7 @@ launch-prefix="valgrind --tool=callgrind --callgrind-out-file='callgrind.dream_g
                          (-0.131683,0.0137762,-1.57291)
 
         - observation scoring:
-            - TODO: add exp(-1./m_gaussianSigma*bestMu*bestMu), where m_gaussianSigma is 0.05, and bestMu is <0.01
+            - add exp(-1./m_gaussianSigma*bestMu*bestMu), where m_gaussianSigma is 0.05, and bestMu is <0.01
             - skip rays beyond usable range (max_range, or min_range) kernel size is 1
             - TODO: find the best mu, compare that with your current mu!!!
 

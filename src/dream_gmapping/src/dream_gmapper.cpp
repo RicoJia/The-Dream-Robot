@@ -127,8 +127,9 @@ DreamGMapper::DreamGMapper(ros::NodeHandle nh_) {
     beam_search_kernel_[2 * i] = -i;
   }
   const double external_kernel_diagnol_squared =
-      2 * std::pow(resolution_ * (10 + half_beam_kernel_size_), 2);
-  prob_not_found_ = external_kernel_diagnol_squared / beam_noise_variance_;
+      std::pow(resolution_ * (10 + half_beam_kernel_size_), 2);
+  prob_not_found_ =
+      std::exp(-external_kernel_diagnol_squared / beam_noise_variance_);
 
   // initialize debugging publishers
   if (publish_debug_scan_) {
@@ -163,27 +164,47 @@ void DreamGMapper::initialize_map() {
 }
 
 void DreamGMapper::initialize_motion_set(
-    const int &pose_correction_kernel_size) {
-  auto get_matrix = [&](const int &x, const int &y, const double &angle) {
+    const int &optimization_steps_iteration) {
+  auto get_matrix = [&](const double &x, const double &y, const double &angle) {
     Eigen::Matrix4d T =
         SimpleRoboticsCppUtils::get_transform_from_2d_rotation(angle);
-    T(0, 3) += x * resolution_;
-    T(1, 3) += y * resolution_;
+    T(0, 3) += x;
+    T(1, 3) += y;
     return T;
   };
-  motion_set_ = std::vector<Eigen::Matrix4d>{
-      Eigen::Matrix4d::Identity(),
-  };
-  motion_set_.reserve(10);
-  const int pose_correction_kernel_size_abs =
-      std::abs(pose_correction_kernel_size);
-  // 125 motions; 3*3*8 = 72
-  for (int x = -pose_correction_kernel_size_abs;
-       x <= pose_correction_kernel_size_abs; ++x)
-    for (int y = -pose_correction_kernel_size_abs;
-         y <= pose_correction_kernel_size_abs; ++y)
-      for (double angle = -M_PI / 8; angle <= M_PI / 8; angle += M_PI / 16)
-        motion_set_.push_back(get_matrix(x, y, angle));
+
+  double angle_step = resolution_;
+  double linear_step = resolution_;
+  // this matrix has the pose itself first
+  optimization_transforms_vec_.push_back({get_matrix(0, 0, 0)});
+  for (int i = 0; i < optimization_steps_iteration; ++i) {
+    // these are base frame transforms, for moving right, left, forward,
+    // backward, right, left
+    optimization_transforms_vec_.push_back({
+        get_matrix(0, 0, angle_step),
+        get_matrix(0, 0, -angle_step),
+        get_matrix(linear_step, 0, 0),
+        get_matrix(-linear_step, 0, 0),
+        get_matrix(0, linear_step, 0),
+        get_matrix(0, -linear_step, 0),
+    });
+    angle_step *= 0.5;
+    linear_step *= 0.5;
+  }
+
+  //   motion_set_ = std::vector<Eigen::Matrix4d>{
+  //       Eigen::Matrix4d::Identity(),
+  //   };
+  //   motion_set_.reserve(10);
+  //   const int pose_correction_kernel_size_abs =
+  //       std::abs(pose_correction_kernel_size);
+  //   // 125 motions; 3*3*8 = 72
+  //   for (int x = -pose_correction_kernel_size_abs;
+  //        x <= pose_correction_kernel_size_abs; ++x)
+  //     for (int y = -pose_correction_kernel_size_abs;
+  //          y <= pose_correction_kernel_size_abs; ++y)
+  //       for (double angle = -M_PI / 8; angle <= M_PI / 8; angle += M_PI / 16)
+  //         motion_set_.push_back(get_matrix(x, y, angle));
 }
 
 bool DreamGMapper::initialize_base_to_scan() {
@@ -302,8 +323,10 @@ void DreamGMapper::laser_scan(
     if ((ros::Time::now() - last_map_update_).toSec() > map_update_interval_) {
       for (auto &particle : particles_) {
         // Unit-testble optimization function
+        // auto [m, s, c] =
+        //     optimize_after_icp(particle, T_delta, cloud_in_body_frame);
         auto [m, s, c] =
-            optimize_after_icp(particle, T_delta, cloud_in_body_frame);
+            gradient_descent_optimize(particle, T_delta, cloud_in_body_frame);
         double score = s;
         new_pose_estimate = m;
         cloud_in_world_frame = c;
@@ -345,6 +368,60 @@ void DreamGMapper::publish_debug_scans(PclCloudPtr last_cloud,
     // TODO
     // current_cloud_debug_scan_pub_.publish(get_scan_msg(current_cloud));
   }
+}
+
+std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
+DreamGMapper::gradient_descent_optimize(const DreamGMapping::Particle &particle,
+                          const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
+                          PclCloudPtr cloud_in_body_frame) {
+
+    int i = 0; 
+    double best_score = -1.0;
+    PclCloudPtr best_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    auto best_pose = *particle.pose_traj_.back();
+    //TODO
+    std::cout<<"before optimization: "<<std::endl<<best_pose;
+    while (i < optimization_transforms_vec_.size()){
+        double best_local_score = -1.0;
+        PclCloudPtr best_local_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+        auto best_local_pose = best_pose;
+        for(const auto &trans : optimization_transforms_vec_.at(i)){
+            auto new_pose_estimate_neighbor = SimpleRoboticsCppUtils::Pose2D(trans * best_local_pose.to_se3());
+            PclCloudPtr cloud_in_world_frame_pixelized(
+                new pcl::PointCloud<pcl::PointXYZ>());
+            // we are comparing the valid point cloud
+            cloud_in_world_frame_pixelized = DreamGMapping::transform_point_cloud(
+                new_pose_estimate_neighbor, cloud_in_body_frame);
+            DreamGMapping::pixelize_point_cloud(cloud_in_world_frame_pixelized,
+                                                resolution_);
+            double score = observation_model_score(
+                cloud_in_world_frame_pixelized, new_pose_estimate_neighbor,
+                particle.laser_point_accumulation_map_);
+            if (score > best_local_score) {
+                best_local_score = score;
+                best_local_cloud = cloud_in_world_frame_pixelized;
+                best_local_pose = new_pose_estimate_neighbor;
+            }
+            //TODO
+            std::cout<<"score: "<<score<<", new_pose estimate: "<<new_pose_estimate_neighbor<<std::endl;
+        }
+        if (best_score >= best_local_score) {
+            // when our current transform is not yielding a better result,
+            ++i;
+        } else {
+            best_score = best_local_score;
+            best_cloud = best_local_cloud;
+            best_pose = best_local_pose;
+            // move on since we are at i=0 since it's identity transform
+            if (i == 0) ++i;
+        }
+        //TODO
+        std::cout<<"i: "<<i<<"score"<<best_score<<", best pose"<<std::endl<<best_pose<<std::endl;
+        //TODO
+        std::cout<<"=========="<<std::endl;
+    }
+    return std::make_tuple(best_pose, best_score, best_cloud);
+
 }
 
 /**
@@ -416,15 +493,6 @@ double DreamGMapper::observation_model_score(
   Pixel2DWithCount pose_estimated_pixelized =
       Pixel2DWithCount(pose_estimate, resolution_);
 
-  // TODO
-  std::cout << "scan size: " << cloud_in_world_frame_pixelized->points.size()
-            << std::endl;
-  // TODO
-  double s = -prob_not_found_ * cloud_in_world_frame_pixelized->points.size();
-  std::cout << "log score: " << s << std::endl;
-  // TODO
-  std::cout << "exponential score: " << std::pow(1.02, s) << std::endl;
-
   // each individual beam
   for (unsigned int i = 0; i < cloud_in_world_frame_pixelized->points.size();
        ++i) {
@@ -437,45 +505,40 @@ double DreamGMapper::observation_model_score(
     // directions. Find the pixelized p_hit given
     // We go over a 2D kernel layer by layer. Each layer goes around a square,
     // like [1, 0], [1,1], [1,-1], [] something like (2,4) before even going to
+    char best_mu_squared = 10 * 10;
     bool match_found = false;
     for (const auto &xx : beam_search_kernel_) {
-      if (match_found)
-        break;
-      for (unsigned int i = 0;
-           std::abs(beam_search_kernel_.at(i)) < std::abs(xx) &&
-           i < beam_search_kernel_.size();
-           i++) {
-        const char &yy = beam_search_kernel_.at(i);
-        auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
-        auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
-                                       p_hit.y + p_free_offset.y);
-        // is_full returns If p_hit is full, then we have a match, then score (2
-        // * 2000 lookups) and quit. false even on unknown pixels
-        if (!laser_point_accumulation_map.contains(p_hit)) {
-          continue;
-        }
-        if (laser_point_accumulation_map.is_full(
-                p_hit, occupied_fullness_threshold_) &&
-            !laser_point_accumulation_map.is_full(
+        for (const auto &yy : beam_search_kernel_) {
+            auto p_hit = Pixel2DWithCount(endpoint.x + xx, endpoint.y + yy);
+            auto p_free = Pixel2DWithCount(p_hit.x + p_free_offset.x,
+                                        p_hit.y + p_free_offset.y);
+            // is_full returns If p_hit is full, then we have a match, then score (2
+            // * 2000 lookups) and quit. false even on unknown pixels
+            if (!laser_point_accumulation_map.contains(p_hit)) {
+                continue;
+            }
+        // what if p_free is unknown? in ros gmapping unknown is equivalent to free
+        if (laser_point_accumulation_map.is_full(p_hit, occupied_fullness_threshold_) && !laser_point_accumulation_map.is_full(
                 p_free, occupied_fullness_threshold_)) {
-          // compute the log score of the single beam match
-          score +=
-              -(xx * xx + yy * yy) * resolution_squared / beam_noise_variance_;
-          match_found = true;
-          //   std::cout << "match found, score: " << score << std::endl;
-          break;
+                    char mu_squared = xx * xx + yy * yy;
+                    if(mu_squared < best_mu_squared) best_mu_squared = mu_squared;
+                    match_found = true;
         }
-      }
+
+        }
     }
-    if (!match_found) {
-      score += -prob_not_found_;
-      //   // TODO
-      //   std::cout << "observation_model_score, not found:" << score <<
-      //   std::endl;
-    }
+        // compute the log score of the single beam match
+    score += std::exp(-best_mu_squared * resolution_squared /
+                    beam_noise_variance_);
+    // if (match_found){
+
+    //     // compute the log score of the single beam match
+    // score += std::exp(-best_mu_squared * resolution_squared /
+    //                 beam_noise_variance_);
+    // }
   }
   //   take exponential of the sum score
-  return std::pow(1.02, score); // score;
+  return score; // score;
 }
 
 void DreamGMapper::normalize_weights(std::vector<Particle> &particles) {

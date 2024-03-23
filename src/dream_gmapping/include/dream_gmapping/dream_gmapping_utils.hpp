@@ -50,7 +50,6 @@ public:
   inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p,
                       const double occupied_fullness_threshold = 0.5) const {
     auto [hit_count, total_count] = get_counts(p.x, p.y);
-    // We set 0.5 as known/unknown boundary.
     return static_cast<double>(total_count) * occupied_fullness_threshold <
            static_cast<double>(hit_count);
   }

@@ -69,7 +69,10 @@ protected:
   std::vector<DreamGMapping::Particle> particles_;
   // transforms to neighbors around a pose estimate
   std::vector<Eigen::Matrix4d> neighbor_transforms_;
+  // TODO
   std::vector<Eigen::Matrix4d> motion_set_;
+  std::vector<std::vector<Eigen::Matrix4d>> optimization_transforms_vec_;
+
   unsigned int best_particle_index_ = 0;
   std::vector<int> beam_search_kernel_;
 
@@ -104,6 +107,10 @@ protected:
                      const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
                      PclCloudPtr cloud_in_body_frame);
 
+  std::tuple<SimpleRoboticsCppUtils::Pose2D, double, PclCloudPtr>
+  gradient_descent_optimize(const DreamGMapping::Particle &particle,
+                            const Eigen::Ref<Eigen::Matrix4d> T_icp_output,
+                            PclCloudPtr cloud_in_body_frame);
   /**
    * @brief Score a point cloud in world frame pixels based on a gaussian
    * observation model
