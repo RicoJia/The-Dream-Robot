@@ -540,7 +540,7 @@ double DreamGMapper::observation_model_score(
         if ((laser_point_accumulation_map.is_full(
                 p_hit, occupied_fullness_threshold_)) &&
             (!laser_point_accumulation_map.is_full(
-                p_free, occupied_fullness_threshold_))) {
+                p_free, occupied_fullness_threshold_) && laser_point_accumulation_map.contains(p_free))) {
           char mu_squared = xx * xx + yy * yy;
           if (mu_squared < best_mu_squared)
             best_mu_squared = mu_squared;
