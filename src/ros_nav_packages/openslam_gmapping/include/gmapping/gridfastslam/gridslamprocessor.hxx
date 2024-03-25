@@ -13,7 +13,7 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading) {
   for (ParticleVector::iterator it = m_particles.begin();
        it != m_particles.end(); it++) {
     OrientedPoint corrected;
-    // l is likelihood
+    // l is likelihood, scanmatcher.cpp
     double score, l, s;
     score = m_matcher.optimize(corrected, it->map, it->pose, plainReading);
     if (score > m_minimumScore) {
@@ -80,7 +80,9 @@ inline bool GridSlamProcessor::resample(const double *plainReading,
     // BEGIN: BUILDING TREE
     ParticleVector temp;
     unsigned int j = 0;
-    std::vector<unsigned int> deletedParticles; // this is for deleteing the particles which have been resampled away.
+    std::vector<unsigned int>
+        deletedParticles; // this is for deleteing the particles which have been
+                          // resampled away.
     for (unsigned int i = 0; i < m_indexes.size(); i++) {
       while (j < m_indexes[i]) {
         deletedParticles.push_back(j);
