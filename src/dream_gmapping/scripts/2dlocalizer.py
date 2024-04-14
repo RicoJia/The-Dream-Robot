@@ -20,9 +20,10 @@ from localizer_2d_utils import (
     MapValue,
     matrix_to_map_pixel,
     add_pose_to_relative_poses,
+    get_points_on_search_grid,
 )
 
-SEARCH_GRID_RESOLUTION = 10  # 0.5m
+SEARCH_GRID_RESOLUTION = 8  # 3.2m
 BEAM_SEARCH_KERNEL_SIZE = 2
 BEAM_NOICE_VARIANCE = 0.1  # in meter
 
@@ -44,18 +45,6 @@ def load_scan_messages(filename):
     with open(filename, "rb") as file:
         data = pickle.load(file)
     return data
-
-
-def get_search_grid_points(
-    map_image: np.ndarray, img_width: int, img_height: int
-) -> np.ndarray:
-    search_grid_points = []
-    for x in range(0, img_height, SEARCH_GRID_RESOLUTION):
-        for y in range(0, img_width, SEARCH_GRID_RESOLUTION):
-            if map_image[x, y] == MapValue.FREE.value:
-                # each pose: [x,y,theta]
-                search_grid_points.append(np.array([x, y]))
-    return np.asarray(search_grid_points).astype(int)
 
 
 def visualize_map(
@@ -196,17 +185,9 @@ if __name__ == "__main__":
     # meter -> pixels
     effective_range = 10 / resolution
     resolution_squared = resolution * resolution
-    trial_scan_msg = all_data[20]
-
-    # 1. Search grid
-    search_grid_points = get_search_grid_points(
-        map_image=map_image, img_width=img_width, img_height=img_height
-    )
-    search_grid_points_map_pixelized = matrix_to_map_pixel(
-        search_grid_points, origin_px, img_height=img_height
-    )
-    # # TODO
-    # search_grid_points_map_pixelized =  np.array([[20,20], [0,8]])
+    # TODO Remember to remove
+    print(f"Rico: {len(all_data)}")
+    trial_scan_msg = all_data[-1]
 
     search_thetas = np.arange(0, 2 * np.pi, np.pi / 128)
     # search_thetas = [np.pi/2]
@@ -224,60 +205,105 @@ if __name__ == "__main__":
         search_thetas, p_hits_for_all_thetas
     )
 
-    # # optimization
-    best_score = 0
-    best_point = None
-    best_theta_index = -1
-    best_p_hits = None
-    for pose in search_grid_points_map_pixelized:
-        # all map coords thetas
-        p_hits_for_all_thetas_for_pose = add_pose_to_relative_poses(
-            p_hits_for_all_thetas, pose[:2]
+    # optimization
+    # 1. Search grid
+    def optimize_using_grid_search(
+        map_image: np.ndarray,
+        top_left: np.ndarray,
+        bottom_right: np.ndarray,
+        search_grid_resolution: int,
+        best_point_so_far: np.ndarray,
+    ):
+        if search_grid_resolution == 0:
+            return
+        search_grid_points = get_points_on_search_grid(
+            map_image=map_image,
+            top_left=top_left,
+            bottom_right=bottom_right,
+            search_grid_resolution=search_grid_resolution,
         )
-        p_frees_for_all_thetas_for_pose = add_pose_to_relative_poses(
-            p_frees_for_all_thetas, pose[:2]
+        search_grid_points_map_pixelized = matrix_to_map_pixel(
+            search_grid_points, origin_px, img_height=img_height
         )
-        # To matrix coords
-        p_hit_in_matrix_coords_for_all_thetas = map_pixel_to_matrix(
-            points_for_all_thetas=p_hits_for_all_thetas_for_pose,
-            origin_px=origin_px,
-            img_height=img_height,
-        )
-        p_free_in_matrix_coords_for_all_thetas = map_pixel_to_matrix(
-            points_for_all_thetas=p_frees_for_all_thetas_for_pose,
-            origin_px=origin_px,
-            img_height=img_height,
-        )
-        best_single_pose_score = 0
-        best_single_pose_theta_index = -1
-        best_single_pose_p_hits = None
-        for theta_idx in range(len(search_thetas)):
-            p_hits = p_hit_in_matrix_coords_for_all_thetas[theta_idx]
-            p_frees = p_free_in_matrix_coords_for_all_thetas[theta_idx]
-            try:
-                xor_mask = create_mask(p_hits, p_frees, img_width, img_height)
-            except IndexError:
-                continue
-            result_map = (map_image == xor_mask).astype(int)
-            score = np.sum(result_map)
-            if score > best_single_pose_score:
-                best_single_pose_score = score
-                best_single_pose_theta_index = theta_idx
-                best_single_pose_p_hits = p_hits_for_all_thetas_for_pose[theta_idx]
-            # print(f'Theta: {search_thetas[theta_idx]} Score: {score}')
-        if best_score < best_single_pose_score:
-            best_score = best_single_pose_score
-            best_point = pose
-            best_theta_index = best_single_pose_theta_index
-            best_p_hits = best_single_pose_p_hits
+        # # TODO
+        # search_grid_points_map_pixelized =  np.array([[20,20], [0,8]])
+        best_score = 0
+        best_point = None
+        best_theta_index = -1
+        best_p_hits = None
+        for pose in search_grid_points_map_pixelized:
+            # all map coords thetas
+            p_hits_for_all_thetas_for_pose = add_pose_to_relative_poses(
+                p_hits_for_all_thetas, pose[:2]
+            )
+            p_frees_for_all_thetas_for_pose = add_pose_to_relative_poses(
+                p_frees_for_all_thetas, pose[:2]
+            )
+            # To matrix coords
+            p_hit_in_matrix_coords_for_all_thetas = map_pixel_to_matrix(
+                points_for_all_thetas=p_hits_for_all_thetas_for_pose,
+                origin_px=origin_px,
+                img_height=img_height,
+            )
+            p_free_in_matrix_coords_for_all_thetas = map_pixel_to_matrix(
+                points_for_all_thetas=p_frees_for_all_thetas_for_pose,
+                origin_px=origin_px,
+                img_height=img_height,
+            )
+            best_single_pose_score = 0
+            best_single_pose_theta_index = -1
+            best_single_pose_p_hits = None
+            for theta_idx in range(len(search_thetas)):
+                p_hits = p_hit_in_matrix_coords_for_all_thetas[theta_idx]
+                p_frees = p_free_in_matrix_coords_for_all_thetas[theta_idx]
+                try:
+                    xor_mask = create_mask(p_hits, p_frees, img_width, img_height)
+                except IndexError:
+                    continue
+                result_map = (map_image == xor_mask).astype(int)
+                score = np.sum(result_map)
+                if score > best_single_pose_score:
+                    best_single_pose_score = score
+                    best_single_pose_theta_index = theta_idx
+                    best_single_pose_p_hits = p_hits_for_all_thetas_for_pose[theta_idx]
+                # print(f'Theta: {search_thetas[theta_idx]} Score: {score}')
+            if best_score < best_single_pose_score:
+                best_score = best_single_pose_score
+                best_point = pose
+                best_theta_index = best_single_pose_theta_index
+                best_p_hits = best_single_pose_p_hits
+            print(
+                f"best angle {best_single_pose_theta_index}, score: {best_single_pose_score}"
+            )
         print(
-            f"best angle {best_single_pose_theta_index}, score: {best_single_pose_score}"
+            f"best score: {best_score}, best point: {best_point}, best theta: {search_thetas[best_theta_index]}"
         )
-    print(
-        f"best score: {best_score}, best point: {best_point}, best theta: {search_thetas[best_theta_index]}"
-    )
-    visualize_map(map_image, origin_px, best_laser_endbeam_xy=best_p_hits)
+        quarter_window = np.array([search_grid_resolution, search_grid_resolution])
+        if best_point_so_far is not None and best_point is not None:
+            if np.array_equal(best_point, best_point_so_far):
+                visualize_map(map_image, origin_px, best_laser_endbeam_xy=best_p_hits)
+                # return
+        optimize_using_grid_search(
+            map_image=map_image,
+            top_left=map_pixel_to_matrix(
+                [np.array([best_point])], origin_px, img_height
+            )[0][0]
+            - quarter_window,
+            bottom_right=map_pixel_to_matrix(
+                [np.array([best_point])], origin_px, img_height
+            )[0][0]
+            + quarter_window,
+            search_grid_resolution=int(search_grid_resolution / 2),
+            best_point_so_far=best_point,
+        )
 
+    optimize_using_grid_search(
+        map_image=map_image,
+        top_left=np.array([0, 0]),
+        bottom_right=np.asarray(map_image.shape),
+        search_grid_resolution=SEARCH_GRID_RESOLUTION,
+        best_point_so_far=None,
+    )
     # Score:
     # Given a pose in search grid,
     #   - map_pixel of laser endpoint beam relative to the pose?

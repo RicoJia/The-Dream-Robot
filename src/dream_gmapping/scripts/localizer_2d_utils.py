@@ -11,6 +11,33 @@ class MapValue(Enum):
     FREE = 254
 
 
+# def get_search_grid_points(
+#     map_image: np.ndarray, img_width: int, img_height: int
+# ) -> np.ndarray:
+#     search_grid_points = []
+#     for x in range(0, img_height, SEARCH_GRID_RESOLUTION):
+#         for y in range(0, img_width, SEARCH_GRID_RESOLUTION):
+#             if map_image[x, y] == MapValue.FREE.value:
+#                 # each pose: [x,y,theta]
+#                 search_grid_points.append(np.array([x, y]))
+#     return np.asarray(search_grid_points).astype(int)
+
+
+def get_points_on_search_grid(
+    map_image: np.ndarray,
+    top_left: np.ndarray,
+    bottom_right: np.ndarray,
+    search_grid_resolution: int,
+) -> np.ndarray:
+    # top_left and bottom_right are in matrix coordinates
+    search_grid_points = []
+    for x in range(top_left[0], bottom_right[0], search_grid_resolution):
+        for y in range(top_left[1], bottom_right[1], search_grid_resolution):
+            if map_image[x, y] == MapValue.FREE.value:
+                search_grid_points.append(np.array([x, y]))
+    return np.asarray(search_grid_points).astype(int)
+
+
 # def get_all_motions(search_grid_points_map_pixelized: List[np.ndarray]):
 #     # Return points around
 #     # optimization
@@ -61,7 +88,7 @@ def matrix_to_map_pixel(
     matrix_indices = matrix_indices[:, [1, 0]]
     matrix_indices[:, 1] = img_height - matrix_indices[:, 1]
     matrix_indices -= origin_px
-    return matrix_indices
+    return matrix_indices.astype(int)
 
 
 def add_pose_to_relative_poses(
@@ -77,7 +104,8 @@ def add_pose_to_relative_poses(
 def create_mask(p_hits, p_frees, img_width, img_height):
     xor_mask = MapValue.INVALID.value * np.ones((img_height, img_width))
     xor_mask[p_hits[:, 0], p_hits[:, 1]] = MapValue.OCC.value
-    xor_mask[p_frees[:, 0], p_frees[:, 1]] = MapValue.FREE.value
+    # TODO
+    # xor_mask[p_frees[:, 0], p_frees[:, 1]] = MapValue.FREE.value
     return xor_mask
 
 
