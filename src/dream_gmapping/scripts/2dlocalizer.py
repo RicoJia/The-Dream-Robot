@@ -21,6 +21,7 @@ from localizer_2d_utils import (
     matrix_to_map_pixel,
     add_pose_to_relative_poses,
     get_points_on_search_grid,
+    get_gradient_mat,
 )
 
 SEARCH_GRID_RESOLUTION = 8  # 3.2m
@@ -166,6 +167,7 @@ def get_p_frees_for_all_thetas(
 if __name__ == "__main__":
     map_metadata, map_image = load_map_and_meta_data("/home/rjia/Videos/bird_world")
     all_data = load_scan_messages("/home/rjia/Videos/scan_data.pkl")
+    img_gradient = get_gradient_mat(map_image)
     resolution = map_metadata["resolution"]
     img_width = map_image.shape[1]
     img_height = map_image.shape[0]
@@ -260,8 +262,12 @@ if __name__ == "__main__":
                     xor_mask = create_mask(p_hits, p_frees, img_width, img_height)
                 except IndexError:
                     continue
-                result_map = (map_image == xor_mask).astype(int)
+                # TODO if works, can further
+                # result_map = (map_image == xor_mask).astype(int)
+                gradient_laser_scan = get_gradient_mat(xor_mask)
+                result_map = (gradient_laser_scan == img_gradient).astype(int)
                 score = np.sum(result_map)
+
                 if score > best_single_pose_score:
                     best_single_pose_score = score
                     best_single_pose_theta_index = theta_idx
@@ -279,10 +285,12 @@ if __name__ == "__main__":
             f"best score: {best_score}, best point: {best_point}, best theta: {search_thetas[best_theta_index]}"
         )
         quarter_window = np.array([search_grid_resolution, search_grid_resolution])
-        if best_point_so_far is not None and best_point is not None:
-            if np.array_equal(best_point, best_point_so_far):
-                visualize_map(map_image, origin_px, best_laser_endbeam_xy=best_p_hits)
-                # return
+        visualize_map(map_image, origin_px, best_laser_endbeam_xy=best_p_hits)
+        # TODO
+        # if best_point_so_far is not None and best_point is not None:
+        #     if np.array_equal(best_point, best_point_so_far):
+        #         visualize_map(map_image, origin_px, best_laser_endbeam_xy=best_p_hits)
+        # return
         optimize_using_grid_search(
             map_image=map_image,
             top_left=map_pixel_to_matrix(

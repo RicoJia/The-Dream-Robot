@@ -2,6 +2,7 @@ import numpy as np
 from enum import Enum
 from typing import List
 from copy import deepcopy
+import cv2
 
 
 class MapValue(Enum):
@@ -109,6 +110,12 @@ def create_mask(p_hits, p_frees, img_width, img_height):
     return xor_mask
 
 
+def get_gradient_mat(mat):
+    sobelx = cv2.Sobel(mat, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(mat, cv2.CV_64F, 0, 1, ksize=3)
+    return np.sqrt(sobelx**2 + sobely**2)
+
+
 if __name__ == "__main__":
     starts = np.array([[2, 1], [2, 2], [2, 4]])
     get_vector_1_pixel_away_vectorized(starts, np.array([0, 0]))
@@ -120,3 +127,5 @@ if __name__ == "__main__":
 
     arr = matrix_to_map_pixel(arr[0], np.array([1, 1]), img_height=10)
     print(f"matrix to pixel: {arr}")
+
+    print("gradient: ", get_gradient_mat(np.identity(3)))
