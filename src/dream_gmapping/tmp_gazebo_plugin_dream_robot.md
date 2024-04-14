@@ -632,4 +632,4 @@ Icp using Least Squares
 ### Future Improvements
 1. Laser scan point association. Currently, we are using point-point association. That is not as robust as point-plane assocation
     - Also, outlier association could be more intricate
-
+2. Information Filter
