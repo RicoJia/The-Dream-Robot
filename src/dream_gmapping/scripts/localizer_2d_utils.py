@@ -113,7 +113,8 @@ def create_mask(p_hits, p_frees, img_width, img_height):
 def get_gradient_mat(mat):
     sobelx = cv2.Sobel(mat, cv2.CV_64F, 1, 0, ksize=3)
     sobely = cv2.Sobel(mat, cv2.CV_64F, 0, 1, ksize=3)
-    return np.sqrt(sobelx**2 + sobely**2)
+    result_img = np.sqrt(sobelx**2 + sobely**2)
+    return (result_img > 0).astype(np.uint8)
 
 
 if __name__ == "__main__":

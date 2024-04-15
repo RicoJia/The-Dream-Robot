@@ -24,7 +24,7 @@ from localizer_2d_utils import (
     get_gradient_mat,
 )
 
-SEARCH_GRID_RESOLUTION = 64  # 3.2m
+SEARCH_GRID_RESOLUTION = 4  # 0.2m
 BEAM_SEARCH_KERNEL_SIZE = 2
 BEAM_NOICE_VARIANCE = 0.1  # in meter
 
@@ -188,10 +188,11 @@ if __name__ == "__main__":
     effective_range = 10 / resolution
     resolution_squared = resolution * resolution
     # TODO Remember to remove
-    print(f"Rico: {len(all_data)}")
-    trial_scan_msg = all_data[0]
+    print(f"length of data: {len(all_data)}")
+    trial_scan_msg = all_data[-1]
 
-    search_thetas = np.arange(0, 2 * np.pi, np.pi / 128)
+    # TODO
+    search_thetas = np.arange(0, 2 * np.pi, np.pi / 4)
     # search_thetas = [np.pi/2]
     bearings = np.arange(0, 2 * np.pi, 2 * np.pi / len(trial_scan_msg))
     # From now on, we are operating in pixelized map frame
@@ -227,8 +228,8 @@ if __name__ == "__main__":
         search_grid_points_map_pixelized = matrix_to_map_pixel(
             search_grid_points, origin_px, img_height=img_height
         )
-        # # TODO
-        # search_grid_points_map_pixelized =  np.array([[20,20], [0,8]])
+        # TODO
+        # search_grid_points_map_pixelized =  np.array([[0,0]])
         best_score = 0
         best_point = None
         best_theta_index = -1
@@ -268,6 +269,14 @@ if __name__ == "__main__":
                 result_map = (gradient_laser_scan == img_gradient).astype(int)
                 score = np.sum(result_map)
 
+                # #TODO Remember to remove
+                # print(f'Rico: score: {score}')
+                # print(f'Rico: image gradient')
+                # visualize_map(img_gradient, origin_px)
+                # print(f'Rico: laser scan gradient')
+                # visualize_map(gradient_laser_scan, origin_px)
+                # print(f'Rico: result map')
+                # visualize_map(result_map, origin_px)
                 if score > best_single_pose_score:
                     best_single_pose_score = score
                     best_single_pose_theta_index = theta_idx
@@ -278,9 +287,9 @@ if __name__ == "__main__":
                 best_point = pose
                 best_theta_index = best_single_pose_theta_index
                 best_p_hits = best_single_pose_p_hits
-            print(
-                f"best angle {best_single_pose_theta_index}, score: {best_single_pose_score}"
-            )
+            # print(
+            #     f"best angle {best_single_pose_theta_index}, score: {best_single_pose_score}"
+            # )
         print(
             f"best score: {best_score}, best point: {best_point}, best theta: {search_thetas[best_theta_index]}"
         )
