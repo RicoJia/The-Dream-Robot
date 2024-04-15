@@ -24,7 +24,7 @@ from localizer_2d_utils import (
     get_gradient_mat,
 )
 
-SEARCH_GRID_RESOLUTION = 8  # 3.2m
+SEARCH_GRID_RESOLUTION = 64  # 3.2m
 BEAM_SEARCH_KERNEL_SIZE = 2
 BEAM_NOICE_VARIANCE = 0.1  # in meter
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     resolution_squared = resolution * resolution
     # TODO Remember to remove
     print(f"Rico: {len(all_data)}")
-    trial_scan_msg = all_data[-1]
+    trial_scan_msg = all_data[0]
 
     search_thetas = np.arange(0, 2 * np.pi, np.pi / 128)
     # search_thetas = [np.pi/2]
