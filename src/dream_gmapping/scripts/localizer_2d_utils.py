@@ -102,7 +102,7 @@ def add_pose_to_relative_poses(
     return p_hits_for_all_thetas_single_cp
 
 
-def create_mask(p_hits, p_frees, img_width, img_height):
+def create_mask(p_hits, img_width, img_height):
     xor_mask = MapValue.INVALID.value * np.ones((img_height, img_width))
     xor_mask[p_hits[:, 0], p_hits[:, 1]] = MapValue.OCC.value
     # TODO
@@ -110,11 +110,18 @@ def create_mask(p_hits, p_frees, img_width, img_height):
     return xor_mask
 
 
+def get_binary_image(image):
+    return (image > 0).astype(np.uint8)
+
+
 def get_gradient_mat(mat):
     sobelx = cv2.Sobel(mat, cv2.CV_64F, 1, 0, ksize=3)
     sobely = cv2.Sobel(mat, cv2.CV_64F, 0, 1, ksize=3)
     result_img = np.sqrt(sobelx**2 + sobely**2)
-    return (result_img > 0).astype(np.uint8)
+    result_img = cv2.GaussianBlur(
+        result_img, (1, 1), 0
+    )  # (5, 5) is the kernel size, 0 is sigmaX
+    return get_binary_image(result_img)
 
 
 if __name__ == "__main__":
