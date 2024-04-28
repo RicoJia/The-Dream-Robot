@@ -1,5 +1,6 @@
 # The intended use of resource registry is to launch this with all low level drivers
 # Then get params like rospy.get_param("/PARAM/LED_SERVICE")
+# rosparam load dream_resource_registry.yaml
 SERVICE:
   LED_SERVICE: "/dream/led_service"
 
@@ -8,6 +9,7 @@ ROS_TOPIC:
   CMD_VEL: "/dream/cmd_vel"
   ODOM: "/dream/odom"
   WHEEL_POS: "/dream/wheel_pos"
+  SCAN_TOPIC: "/dream/scan"
 
 SHM_TOPIC:
   # NOTE: there must be only one slash, and it should be at the beginning
@@ -25,3 +27,4 @@ PARAMS:
   WHEEL_THICKNESS: 0.040
   WHEEL_BASE_CENTER_TO_CENTER: 0.190
   DEBUG_MOTORS: true
+  SCAN_FRAME: "scan"
