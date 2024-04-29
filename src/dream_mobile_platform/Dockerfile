@@ -80,6 +80,8 @@ USER $UNAME
 ENV WORKDIRECTORY="/home/The-Dream-Robot"
 ENV PATH="${WORKDIRECTORY}/src/dream_mobile_platform/bin:${PATH}"
 ENV SKIP_OFFLINE_PACKAGES="true"
+# TODO: this container is assumed to be run on board, so we set SIM to false
+ENV SIM="false"
 # ENV TERM="xterm-256color"
 WORKDIR ${WORKDIRECTORY}
 
