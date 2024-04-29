@@ -42,6 +42,10 @@ RUN if [ "$BUILD_SIM" = "true" ]; then \
         ros-noetic-robot-state-publisher \
         ros-noetic-rviz \
         ros-noetic-xacro \
+        ros-noetic-tf2 \
+        ros-noetic-tf \
+        ros-noetic-tf2-eigen \
+        ros-noetic-tf2-ros \ 
         gazebo11 \
         ros-noetic-gazebo-ros \
         ros-noetic-gazebo-ros-pkgs \
@@ -53,7 +57,7 @@ RUN pip3 install --upgrade opencv-python==4.6.0.66 \
  websockets==10.4 \
  pynput==1.7.6 \
  numpy==1.22.4 RPi.GPIO posix_ipc  numba==0.56.0 \
- adafruit_rplidar
+ adafruit_rplidar pyserial==3.5
 
 RUN wget https://github.com/joan2937/pigpio/archive/master.zip && unzip master.zip && cd pigpio-master && make && sudo make install
 
