@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 project(gmapping)
 
+# Convert the environment variable to upper case, and skip if 
+# This environment variable is set
+string(TOUPPER $ENV{SKIP_OFFLINE_PACKAGES} SKIP_OFFLINE_PACKAGES_UPPER)
+message(STATUS "SKIP_OFFLINE_PACKAGES is ${SKIP_OFFLINE_PACKAGES_UPPER}")
+if(SKIP_OFFLINE_PACKAGES_UPPER STREQUAL "TRUE")
+  message(STATUS "Skipping ${PROJECT_NAME} due to SKIP_OFFLINE_PACKAGES variable.")
+  return()
+endif()
+
 find_package(catkin REQUIRED nav_msgs nodelet openslam_gmapping roscpp tf rosbag_storage)
 
 find_package(Boost REQUIRED)
