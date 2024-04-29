@@ -8,6 +8,7 @@
         <node pkg="dream_mobile_platform" type="pwm_led_manager.py" name="pwm_led_manager" output="screen"/>
         <node pkg="dream_mobile_platform" type="motor_encoder.py" name="encoder_reader" output="screen"/>
         <node pkg="dream_mobile_platform" type="motor_driver.py" name="motor_driver" output="screen"/>
+        <node pkg="dream_mobile_platform" type="rpi_scanner_node.py" name="rpi_scanner_node" output="screen"/>
         <!-- LIDAR -->
     </group>
     <!-- Simulation -->
