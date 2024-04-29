@@ -46,7 +46,7 @@ if [[ $DO_CATKIN_BUILD == true ]]; then
     fi
 
     git config --global --add safe.directory ${WORKDIRECTORY}
-    git config --global --add safe.directory ${WORKDIRECTORY}/src/SimpleRoboticsPythonUtils
+    git config --global --add safe.directory ${WORKDIRECTORY}/src/SimpleRoboticsUtils
     cd ${WORKDIRECTORY}/src && git submodule update --init --recursive
     cd ${WORKDIRECTORY}/src/SimpleRoboticsPythonUtils && pip3 install -e .
 fi
