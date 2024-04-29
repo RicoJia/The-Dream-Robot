@@ -79,6 +79,7 @@ USER $UNAME
 # Env variables will persist across images
 ENV WORKDIRECTORY="/home/The-Dream-Robot"
 ENV PATH="${WORKDIRECTORY}/src/dream_mobile_platform/bin:${PATH}"
+ENV SKIP_OFFLINE_PACKAGES="true"
 # ENV TERM="xterm-256color"
 WORKDIR ${WORKDIRECTORY}
 
