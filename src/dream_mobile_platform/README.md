@@ -28,6 +28,8 @@ Features
    ```
    - Or on the robot, start the byobu services using "dream_byobu". `dream_byobu <-l> <-b>`
      - Each input arg is optional. See documentation with `dream_byobu -h`
+6. Onboard package building
+    - We are skipping catkin-building some offline packages. Check out their CMakeLists.txt
 
 ### Simulation
 
@@ -62,7 +64,7 @@ D["MOTOR_ENCODER"] -->|/ROS_TOPIC/WHEEL_POS| GMAPPING/RMCL
 A["MOTOR_CONTROLLER"] -->|/SHM_TOPIC/MOTOR_COMMANDS| B["MOTOR_DRIVER"] --> C["MOTORS"] --> D["MOTOR_ENCODER"] --> |/SHM_TOPIC/WHEEL_VELOCITIES|A
 
 F["Keyboard Gamepad"] -->|/ROS_TOPIC/CMD_VEL|CONNECTOR_CMD_VEL_NODE{ } --> G["cmd_vel_to_motor_commands"] -->|/SHM_TOPIC/COMMANDED_WHEEL_VELOCITY| CONNECTOR_WHEEL_VEL_NODE{ }
-
+        - We are skipping catkin-building some offline packages. Check out their CMakeLists.txt
 CONNECTOR_WHEEL_VEL_NODE --> A
 CONNECTOR_WHEEL_VEL_NODE--> GAZEBO_DIFF_DRIVE --> GAZEBO
 GAZEBO_LIDAR --> GAZEBO

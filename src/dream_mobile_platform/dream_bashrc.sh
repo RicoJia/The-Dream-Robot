@@ -8,3 +8,15 @@ sudo_ros_preserve_env(){
     sudo -E /bin/bash -c "source ${WORKDIRECTORY}/devel/setup.bash; $cmd"
 }
 
+print_opening_msg(){
+# NO LEADING spacing or tabs
+echo -e "$(cat << 'EOF'
+\e[31mHola dreamer - this is a friendly message you might want to know
+- We are skipping catkin-building some offline packages. Check out their CMakeLists.txt\e[0m
+EOF
+)"
+}
+
+print_opening_msg
+
+
