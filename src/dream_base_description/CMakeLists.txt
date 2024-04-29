@@ -2,6 +2,15 @@
 cmake_minimum_required(VERSION 3.5)
 project(dream_base_description)
 
+# Convert the environment variable to upper case, and skip if 
+# This environment variable is set
+string(TOUPPER $ENV{SKIP_OFFLINE_PACKAGES} SKIP_OFFLINE_PACKAGES_UPPER)
+message(STATUS "SKIP_OFFLINE_PACKAGES is ${SKIP_OFFLINE_PACKAGES_UPPER}")
+if(SKIP_OFFLINE_PACKAGES_UPPER STREQUAL "TRUE")
+  message(STATUS "Skipping ${PROJECT_NAME} due to SKIP_OFFLINE_PACKAGES variable.")
+  return()
+endif()
+
 # By default, ROS noetic has C++14. But on a package level, you can do C++17
 # Compile as C++17, supported in ROS noetic and newer
 add_compile_options(-std=c++17)

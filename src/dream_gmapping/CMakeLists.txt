@@ -2,6 +2,15 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(dream_gmapping)
 
+# Convert the environment variable to upper case, and skip if 
+# This environment variable is set
+string(TOUPPER $ENV{SKIP_OFFLINE_PACKAGES} SKIP_OFFLINE_PACKAGES_UPPER)
+message(STATUS "SKIP_OFFLINE_PACKAGES is ${SKIP_OFFLINE_PACKAGES_UPPER}")
+if(SKIP_OFFLINE_PACKAGES_UPPER STREQUAL "TRUE")
+  message(STATUS "Skipping ${PROJECT_NAME} due to SKIP_OFFLINE_PACKAGES variable.")
+  return()
+endif()
+
 add_compile_options(-std=c++2a)
 
 find_package(
