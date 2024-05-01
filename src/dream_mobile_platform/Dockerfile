@@ -92,6 +92,7 @@ RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
 # Using /bin/bash to keep the container alive
 # ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var as indicated in CMD, but not functions. 
 # That's why we do NOT put feature flags in a dream_bashrc.sh
-# ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
+# This will read the local dream_feature_flags
+ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
 CMD /bin/bash
 
