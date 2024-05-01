@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from simple_robotics_python_utils.sensors.rpi_lidar_a1_visualization import find_lidar_usb_device, TOTAL_NUM_ANGLES
+from simple_robotics_python_utils.sensors.rpi_lidar_a1_visualization import find_laser_scanner_rpi, TOTAL_NUM_ANGLES
 from adafruit_rplidar import RPLidar
 import rospy
 from math import floor
@@ -8,7 +8,6 @@ from sensor_msgs.msg import LaserScan
 
 def get_initialized_laser_scan_msg():
     msg = LaserScan()
-    # TODO: to parameterize
     msg.header.frame_id = rospy.get_param('/PARAMS/SCAN_FRAME')
     msg.angle_min = 0.0
     msg.angle_max = 6.28
@@ -22,11 +21,10 @@ def publish_msg(scan_data: List[float], msg:LaserScan, publisher: rospy.Publishe
     msg.ranges = scan_data
     publisher.publish(msg)
 
-
 if __name__ == '__main__':
     NODE_NAME = 'rpi_lidar_a1_node'
+    device_address = find_laser_scanner_rpi()
     rospy.init_node(NODE_NAME)
-    device_address = find_lidar_usb_device()
     lidar = RPLidar(None, device_address)
 
     msg = get_initialized_laser_scan_msg()

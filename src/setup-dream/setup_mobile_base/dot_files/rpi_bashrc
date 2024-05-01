@@ -177,7 +177,7 @@ function start_docker(){
     # Now, run the Docker container with the correct group-add parameter
     sudo docker run --name my_ros_container --rm \
         -e DISPLAY=$DISPLAY \
-        --device /dev/ttyUSB0 \
+        -v /dev:/dev \
         -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
         -v $HOME/.Xauthority:/root/.Xauthority \
         -e XAUTHORITY=/root/.Xauthority \

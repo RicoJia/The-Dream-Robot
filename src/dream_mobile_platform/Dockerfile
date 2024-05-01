@@ -38,6 +38,7 @@ RUN apt-get update && apt-get install -y \
 ARG BUILD_SIM="false"
 RUN if [ "$BUILD_SIM" = "true" ]; then \
     apt-get update && apt-get install -y \
+        udev \
         ros-noetic-joint-state-publisher \
         ros-noetic-robot-state-publisher \
         ros-noetic-rviz \
