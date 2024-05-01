@@ -148,7 +148,7 @@ if __name__ == "__main__":
     )
     with keyboard.Events() as events:
         for event in events:
-            if event.key == keyboard.Key.esc:
+            if rospy.is_shutdown():
                 break
             else:
                 keyboard_event_analyzer(event, commanded_wheel_vel_pub, logger)
