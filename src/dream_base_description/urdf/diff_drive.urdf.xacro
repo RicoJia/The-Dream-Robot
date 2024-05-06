@@ -156,6 +156,33 @@
     </link>
 
 
+    <!-- Dummy rgbd camera link that's 30cm above the base link-->
+    <xacro:_joint name="base_link_rgbd_camera"
+                type="fixed"
+                origin_xyz ="0 0  0.3" origin_rpy="0 0 0"
+                parent = "base_link"
+                child = "rgbd_camera"
+                axis = "1 0 0"/>
+
+    <link name="rgbd_camera">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.0001 0.0001 0.0001"/>
+            </geometry>
+            <xacro:insert_block name="pink_mat"/>
+        </visual>
+    </link>
+
+    <xacro:_joint name="rgbd_camera_rgbd_camera_projection"
+                type="fixed"
+                origin_xyz ="0 0  0.0" origin_rpy="-1.57079 0 -1.57079"
+                parent = "rgbd_camera"
+                child = "rgbd_camera_projection"
+                axis = "1 0 0"/>
+
+    <link name="rgbd_camera_projection"></link>
+
     <xacro:_joint name="base_link_chassis"
                   type="fixed"
                   origin_xyz ="0 0  ${diff_params['wheel_radius'] - diff_params['wheel_axle_offset']}" origin_rpy="0.0 0.0 0.0"
