@@ -1,8 +1,14 @@
 # Test Procedure:
 # docker build -t dream-mobile-platform .
 # If you'd like the simulation args:
-# docker build --build_args BUILD_SIM=true -t dream-mobile-platform .
-# sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged  dream-mobile-platform
+# docker build --build-arg BUILD_SIM=true -t dream-mobile-platform .
+# If you are looking to launch gazebo or rviz, do xhost +local:root on your machine
+# sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh --dns 8.8.8.8 --dns 8.8.4.4 -it --network="host" --privileged dream-mobile-platform
+
+
+
+# TODO: EXPERIMENTING
+# sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro --user $(id -u):$(id -g) -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/rjia/file_exchange_port/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh --dns 8.8.8.8 --dns 8.8.4.4 -it --network="host" --privileged dream-mobile-platform
 
 # Build Procedure:
 # On dev machine:
@@ -18,7 +24,8 @@
 # sudo docker run --name my_ros_container --rm -e DISPLAY=$DISPLAY --device /dev/dri -v /tmp/.X11-unix:/tmp/.X11-unix:ro -v $HOME/.Xauthority:/root/.Xauthority -e XAUTHORITY=/root/.Xauthority -v /home/ricojia/software/The-Dream-Robot/:/home/The-Dream-Robot -v ~/.ssh:/root/.ssh   -it   --network="host"   --privileged   ricojia/rpi-dream-mobile-platform
 
 FROM ros:noetic-ros-base
-
+# Avoid user interaction with tzdata
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     vim \
     ffmpeg \

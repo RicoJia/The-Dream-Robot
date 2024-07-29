@@ -22,7 +22,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(PCL REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Debug)
 
 catkin_package()
 

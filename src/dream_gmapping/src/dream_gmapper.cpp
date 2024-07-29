@@ -20,15 +20,6 @@
     - @param: maxRange: maximum laser scanner range
     - @param: sigma: standard deviation for the scan matching process
     - @param: search window for scan matching
-    // TODO: scan matching kernel, and steps?
-    // TODO: benefits of
-        scan_filter_sub_ = new
-   message_filters::Subscriber<sensor_msgs::LaserScan>(node_, "scan", 5);
-        scan_filter_ = new
-   tf::MessageFilter<sensor_msgs::LaserScan>(*scan_filter_sub_, tf_,
-   odom_frame_, 5);
-        scan_filter_->registerCallback(boost::bind(&SlamGMapping::laserCallback,
-   this, _1));
 */
 
 // Need message filter. Also, a 1s "expiration time"?
@@ -193,21 +184,6 @@ void DreamGMapper::initialize_motion_set(
         get_matrix(0, linear_step, -angle_step),
         get_matrix(0, -linear_step, angle_step),
         get_matrix(0, -linear_step, -angle_step),
-
-        // get_matrix(linear_step, linear_step, 0),
-        // get_matrix(linear_step, -linear_step, 0),
-        // get_matrix(-linear_step, linear_step, 0),
-        // get_matrix(-linear_step, -linear_step, 0),
-
-        // get_matrix(linear_step, linear_step, angle_step),
-        // get_matrix(linear_step, linear_step, -angle_step),
-        // get_matrix(linear_step, -linear_step, angle_step),
-        // get_matrix(linear_step, -linear_step, -angle_step),
-        // get_matrix(-linear_step, linear_step, angle_step),
-        // get_matrix(-linear_step, linear_step, -angle_step),
-        // get_matrix(-linear_step, -linear_step, angle_step),
-        // get_matrix(-linear_step, -linear_step, -angle_step),
-
     });
     angle_step *= 0.5;
     linear_step *= 0.5;
@@ -260,7 +236,6 @@ bool DreamGMapper::get_odom_to_base(Eigen::Matrix4d &T_delta,
 
 void DreamGMapper::laser_scan(
     const boost::shared_ptr<const sensor_msgs::LaserScan> &scan_msg) {
-  // TODO
   std::cout << "==========================================" << std::endl;
   ros::Time current_time = ros::Time::now();
 
@@ -272,9 +247,6 @@ void DreamGMapper::laser_scan(
       SimpleRoboticsCppUtils::get_norm_of_translation(T_delta);
   double delta_theta =
       SimpleRoboticsCppUtils::get_2d_rotation_from_z_axis(T_delta);
-  //   std::cout << "delta_translation, delta_rotation: " << delta_translation
-  //   << ","
-  //             << delta_theta << std::endl;
 
   /**Prepare cloud in robot body frame, and initialize new pose estimate*/
   // this point cloud will be needed by everybody, fella.
@@ -320,10 +292,7 @@ void DreamGMapper::laser_scan(
       // In the if clause, we need: score, the new pose and the new point cloud
       // in world frame
 
-      //   auto [motion_score, new_motion_pose] =
       // TODO: Better noise model
-
-      // TODO: to addd motion model
       *particle.pose_traj_.back() = SimpleRoboticsCppUtils::Pose2D(
           particle.pose_traj_.back()->to_se3() * T_delta);
 
@@ -391,7 +360,6 @@ DreamGMapper::gradient_descent_optimize(
   double best_score = -1.0;
   PclCloudPtr best_cloud(new pcl::PointCloud<pcl::PointXYZ>());
   auto best_pose = *particle.pose_traj_.back();
-  // TODO
   std::cout << "before optimization: " << std::endl << best_pose;
   while (i < optimization_transforms_vec_.size()) {
     double best_local_score = -1.0;
@@ -415,7 +383,6 @@ DreamGMapper::gradient_descent_optimize(
         best_local_cloud = cloud_in_world_frame_pixelized;
         best_local_pose = new_pose_estimate_neighbor;
       }
-      // TODO
       std::cout << "score: " << score
                 << ", new_pose estimate: " << new_pose_estimate_neighbor
                 << std::endl;
@@ -462,16 +429,10 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
   double best_score = std::numeric_limits<double>::lowest();
   Pose2D best_pose(0, 0, 0);
   for (const auto &motion : motion_set_) {
-    // TODO
-    // std::cout << "=============new motion=============" << std::endl;
 
     // search around new_pose_estimate, each neighbor has a pixelized pointcloud
     auto new_pose_estimate_neighbor =
         SimpleRoboticsCppUtils::Pose2D(motion * new_pose_estimate);
-    // TODO
-    // std::cout << "fine adjustment: " << std::endl << motion << std::endl;
-    // std::cout << "new pose estimate: " << std::endl
-    //           << new_pose_estimate_neighbor << std::endl;
 
     PclCloudPtr cloud_in_world_frame_pixelized(
         new pcl::PointCloud<pcl::PointXYZ>());
@@ -484,7 +445,6 @@ DreamGMapper::optimize_after_icp(const DreamGMapping::Particle &particle,
     double score = observation_model_score(
         cloud_in_world_frame_pixelized, new_pose_estimate_neighbor,
         particle.laser_point_accumulation_map_);
-    // TODO
     std::cout << "score returned from observation model score: " << score
               << std::endl;
     if (score > best_score) {
@@ -548,11 +508,8 @@ double DreamGMapper::observation_model_score(
         }
       }
     }
-    // compute the log score of the single beam match
-    // score += std::exp(-best_mu_squared * resolution_squared /
-    //                 beam_noise_variance_);
-    if (match_found) {
 
+    if (match_found) {
       // compute the log score of the single beam match
       score += std::exp(-best_mu_squared * resolution_squared /
                         beam_noise_variance_);
@@ -691,10 +648,6 @@ void DreamGMapper::publish_map() {
   const auto &map_to_baselink = best_particle.pose_traj_.back()->to_se3();
   const Eigen::Matrix4d map_to_odom =
       map_to_baselink * last_odom_pose_.inverse();
-  //   // TODO
-  //   std::cout << "map to baselink: " << map_to_baselink << std::endl;
-  //   // TODO
-  //   std::cout << "last_odom_pose: " << last_odom_pose_ << std::endl;
 
   const Eigen::Isometry3d map_to_odom_iso(map_to_odom);
   geometry_msgs::TransformStamped tmp_tf_ =

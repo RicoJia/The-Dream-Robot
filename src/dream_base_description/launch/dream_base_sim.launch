@@ -13,7 +13,6 @@
     </group>
 
     <!-- Note: cat ` is not suitable for roslaunch, as it simply concatenates urdfs -->
-    <!-- Note: in_order will process xacros the order they appeared, not the order they are defined -->
     <param name="robot_description" command="$(find xacro)/xacro $(find dream_base_description)/urdf/diff_drive.gazebo.xacro"/>
     <!-- send fake joint values -->
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />

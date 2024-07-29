@@ -21,12 +21,18 @@ using SimpleRoboticsCppUtils::Pose2D;
 
 class PointAccumulator {
 private:
-  // TODO to move this back to private
   // { long: {<x,y>, count}} = 8 + 4 + 4 + 4 = 20 bytes. That translates to 20MB
   // of memory. In reality, 67MB for 100 Particles, 10000 points
   std::unordered_map<long, Pixel2DWithCount> count_map_;
 
 public:
+  /**
+   * @brief Add a point to count_map, and if it's a laser beam's end point
+   * 
+   * @param x - x
+   * @param y - y
+   * @param is_hit - true if it's a laser beam's end point
+   */
   inline void add_point(const unsigned int &x, const unsigned int &y,
                         bool is_hit) {
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(x, y);
@@ -43,9 +49,8 @@ public:
   /**
    * @brief we are returning if a pixel is full by a set standard. (if the pixel
    * is unknown, it is not full)
-   * TODO: check if we need to change the unknown stage
    *
-   * @param p
+   * @param p - a map point
    */
   inline bool is_full(const SimpleRoboticsCppUtils::Pixel2DWithCount &p,
                       const double occupied_fullness_threshold = 0.5) const {
@@ -54,6 +59,12 @@ public:
            static_cast<double>(hit_count);
   }
 
+  /**
+   * @brief If the map contains a point
+   * 
+   * @param p - point
+   * @return true / false
+   */
   inline bool
   contains(const SimpleRoboticsCppUtils::Pixel2DWithCount &p) const {
     const auto key = SimpleRoboticsCppUtils::hash_pixel2d_with_count(p.x, p.y);
@@ -80,8 +91,15 @@ public:
                           count_map_.at(key).total_count_);
   }
 
-  // Origin is at the center of the map, with the bottom left corner of the map
-  // being at (0,0) Origin offset is the index of the origin in the 1D array
+  /**
+   * @brief Fill a ros map with input data. 
+   Origin is at the center of the map, with the bottom left corner of the map.
+   being at (0,0) Origin offset is the index of the origin in the 1D array
+   * 
+   * @param data 
+   * @param map_size 
+   * @param origin_offset 
+   */
   inline void fill_ros_map(std::vector<int8_t> &data,
                            const unsigned int &map_size,
                            const unsigned int &origin_offset) const {
@@ -210,6 +228,13 @@ inline bool icp_2d(const PclCloudPtr prev_scan, const PclCloudPtr curr_scan,
   }
 }
 
+/**
+ * @brief Transform a point cloud to Eigen 4d. This could be useful 
+ * 
+ * @param pose_eigen4d : 4x4 homogeneous transform.
+ * @param cloud_in_body_frame : cloud in body frame.
+ * @return PclCloudPtr : resultant point cloud ptr
+ */
 inline PclCloudPtr
 transform_point_cloud_eigen4d(const Eigen::Matrix4d &pose_eigen4d,
                               const PclCloudPtr cloud_in_body_frame) {
