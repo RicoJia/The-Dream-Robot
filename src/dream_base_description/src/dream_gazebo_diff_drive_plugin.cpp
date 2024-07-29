@@ -3,8 +3,10 @@
  * https://github.com/ros-simulation/gazebo_ros_pkgs/blob/noetic-devel/gazebo_plugins/src/gazebo_ros_diff_drive.cpp
  * What this plugin does:
  *  - Set joint vel instataneously
-    - Publish perfect odom as /tf: base_link pose, vel;  for testing
-    - Publish wheel position perfectly in m/s:
+    - listens to commanded velocity: commanded_wheel_vel_topic
+    - Publish perfect map->base_link as /map_ground_truth: base_link pose, vel;
+ for testing
+    - Publish wheel position perfectly in m/s
  * Gazebo Notes:
     - a plugin is a shared lib and inserted into simulation. Has direct access
  to all functionalities in Gazebo
@@ -30,8 +32,10 @@
  accessed within the same translation unit.
  */
 #include <gazebo_plugins/gazebo_ros_utils.h>
+#include <geometry_msgs/Pose.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <ros/publisher.h>
 #include <ros/ros.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -46,6 +50,7 @@
 #include <thread>
 
 #include "ros/callback_queue.h"
+#include "simple_robotics_cpp_utils/math_utils.hpp"
 
 namespace gazebo {
 enum {
@@ -98,10 +103,10 @@ private:
   double WHEEL_RADIUS_;
 
 private:
-  tf2_ros::TransformBroadcaster br_;
+  ros::Publisher groud_truth_pose_pub_;
 
 private:
-  geometry_msgs::TransformStamped groud_truth_odom_;
+  geometry_msgs::Pose groud_truth_pose_;
 
 private:
   double publish_period_;
@@ -165,17 +170,18 @@ public:
     wheel_joint_states_pub_ =
         nh_->advertise<std_msgs::Float32MultiArray>(wheel_joint_pos_topic, 1);
 
-    std::string map_frame_name, base_link_frame_name;
-    find_element("map_frame_name", map_frame_name, _sdf);
-    find_element("base_link_frame_name", base_link_frame_name, _sdf);
-    groud_truth_odom_.header.frame_id = map_frame_name;
-    groud_truth_odom_.child_frame_id = base_link_frame_name;
+    groud_truth_pose_pub_ =
+        nh_->advertise<geometry_msgs::Pose>("map_groud_truth_pose", 10);
 
     // encoder publisher
     double encoder_pub_frequency;
     find_element("encoder_pub_frequency", encoder_pub_frequency, _sdf);
     publish_period_ = 1.0 / encoder_pub_frequency;
     last_update_time_ = model_->GetWorld()->SimTime();
+
+    wheel_joints_[LEFT]->SetPosition(0, 0.0);
+    wheel_joints_[RIGHT]->SetPosition(0, 0.0);
+    ROS_INFO("Zero'ed out wheel joint positions");
 
     ROS_INFO("DreamGazeboDiffDrivePlugin loaded.");
   }
@@ -196,25 +202,29 @@ public:
       // wheel vel published in m/s
       ros::Time current_time = ros::Time::now();
       auto wheel_joint_msg = std_msgs::Float32MultiArray();
+
       for (unsigned int i = 0; i < wheel_joints_.size(); i++) {
-        wheel_joint_msg.data.push_back(wheel_joints_[i]->Position(0) *
-                                       WHEEL_RADIUS_);
+        wheel_joint_msg.data.push_back(
+            SimpleRoboticsCppUtils::normalize_angle_2PI(
+                wheel_joints_[i]->Position(0)));
       }
+      // right wheel is negative
+      wheel_joint_msg.data[1] *= -1;
       wheel_joint_states_pub_.publish(wheel_joint_msg);
       // publish odomground_truth
       ignition::math::Pose3d odom = model_->WorldPose();
       auto quat = tf2::Quaternion();
       quat.setRPY(odom.Rot().Roll(), odom.Rot().Pitch(), odom.Rot().Yaw());
-      groud_truth_odom_.transform.translation.x = odom.Pos().X();
-      groud_truth_odom_.transform.translation.y = odom.Pos().Y();
-      groud_truth_odom_.transform.translation.z = odom.Pos().Z();
-      groud_truth_odom_.transform.rotation.x = quat.x();
-      groud_truth_odom_.transform.rotation.y = quat.y();
-      groud_truth_odom_.transform.rotation.z = quat.z();
-      groud_truth_odom_.transform.rotation.w = quat.w();
-      groud_truth_odom_.header.stamp = current_time;
+      groud_truth_pose_.orientation.x = quat.x();
+      groud_truth_pose_.orientation.y = quat.y();
+      groud_truth_pose_.orientation.z = quat.z();
+      groud_truth_pose_.orientation.w = quat.w();
+      groud_truth_pose_.position.x = odom.Pos().X();
+      groud_truth_pose_.position.y = odom.Pos().Y();
+      groud_truth_pose_.position.z = odom.Pos().Z();
+
       // TODO: not publishing twist for now
-      br_.sendTransform(groud_truth_odom_);
+      groud_truth_pose_pub_.publish(groud_truth_pose_);
     }
   }
 

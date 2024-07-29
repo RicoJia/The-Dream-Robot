@@ -46,8 +46,3 @@
       copy:
         src: "dot_files/rpi_inputrc"
         dest: "/home/ricojia/.inputrc"
-    - name: Build_Docker
-      ansible.builtin.shell:
-        cmd: docker build -t dream_mobile_base .
-      args:
-        chdir: /home/ricojia/software/The-Dream-Robot/dream-mobile-platform/

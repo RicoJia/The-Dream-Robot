@@ -121,11 +121,17 @@ class PigpioDecoder:
 
 class EncoderReader:
     def __init__(self, logger) -> None:
-        self._encoder_pub = SharedMemoryPub(
+        self._encoder_vel_pub = SharedMemoryPub(
             topic=rospy.get_param("/SHM_TOPIC/WHEEL_VELOCITIES"),
             data_type=float,
             arr_size=2,
             debug=False,
+        )
+        self._encoder_pos_pub = SharedMemoryPub(
+            topic = rospy.get_param("/ROS_TOPIC/WHEEL_POS"),
+            data_type=float,
+            arr_size=2,
+            debug=False
         )
         self.last_wheel_pos_np = np.zeros(2)
         self.last_wheel_time = time.perf_counter()
@@ -163,13 +169,15 @@ class EncoderReader:
         Args:
             current_wheel_angles (typing.List[float]): two wheel angles in radians
         """
+        # publishing [0, 2pi]
+        self._encoder_pos_pub.publish(current_wheel_angles)
         angle_diffs: np.ndarray = self.get_angle_diffs(current_wheel_angles)
         curr_time = time.perf_counter()
         angle_velocities = (
             WHEEL_RADIUS * angle_diffs / (curr_time - self.last_wheel_time)
         )
         self.last_wheel_time = curr_time
-        self._encoder_pub.publish(list(angle_velocities))
+        self._encoder_vel_pub.publish(list(angle_velocities))
         logger.debug(f'encoder: {angle_velocities}')
 
 

@@ -325,32 +325,30 @@ double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, 
 	return currentScore;
 }
 
+// RJ: This is the function being used to correct the robot after icp?
 double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
+    // find current score
 	double currentScore=score(map, currentPose, readings);
 	double adelta=m_optAngularDelta, ldelta=m_optLinearDelta;
 	unsigned int refinement=0;
 	enum Move{Front, Back, Left, Right, TurnLeft, TurnRight, Done};
-/*	cout << __func__<<  " readings: ";
-	for (int i=0; i<m_laserBeams; i++){
-		cout << readings[i] << " ";
-	}
-	cout << endl;
-*/	int c_iterations=0;
+	int c_iterations=0;
+    // Two loops for finding the best score 
 	do{
+        // when first entering, no refinement
 		if (bestScore>=currentScore){
 			refinement++;
 			adelta*=.5;
 			ldelta*=.5;
 		}
 		bestScore=currentScore;
-//		cout <<"score="<< currentScore << " refinement=" << refinement;
-//		cout <<  "pose=" << currentPose.x  << " " << currentPose.y << " " << currentPose.theta << endl;
 		OrientedPoint bestLocalPose=currentPose;
 		OrientedPoint localPose=currentPose;
 
 		Move move=Front;
+        // iterate through all motions. find score of the scan match?
 		do {
 			localPose=currentPose;
 			switch(move){
@@ -380,10 +378,10 @@ double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, con
 					break;
 				default:;
 			}
-			
 			double odo_gain=1;
 			if (m_angularOdometryReliability>0.){
-				double dth=init.theta-localPose.theta; 	dth=atan2(sin(dth), cos(dth)); 	dth*=dth;
+				double dth=init.theta-localPose.theta; 	
+                dth=atan2(sin(dth), cos(dth)); 	dth*=dth;
 				odo_gain*=exp(-m_angularOdometryReliability*dth);
 			}
 			if (m_linearOdometryReliability>0.){
@@ -401,11 +399,8 @@ double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, con
 			c_iterations++;
 		} while(move!=Done);
 		currentPose=bestLocalPose;
-//		cout << "currentScore=" << currentScore<< endl;
 		//here we look for the best move;
 	}while (currentScore>bestScore || refinement<m_optRecursiveIterations);
-	//cout << __func__ << "bestScore=" << bestScore<< endl;
-	//cout << __func__ << "iterations=" << c_iterations<< endl;
 	pnew=currentPose;
 	return bestScore;
 }

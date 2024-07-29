@@ -1,0 +1,7 @@
+<launch>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find dream_gmapping)/tests/test_dream_gmapping_rosconsole.config"/>
+    <node pkg="dream_gmapping" type="dream_gmapping" name="dream_gmapping" output="screen">
+        <param name="log" value="debug" />
+    </node>
+    <test pkg="dream_gmapping" type="dream_gmapping_ros_test.py" test-name="dream_gmapping_ros_test" time-limit="30.0"/>
+</launch>
