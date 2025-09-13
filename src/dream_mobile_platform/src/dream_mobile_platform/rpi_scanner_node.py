@@ -22,6 +22,10 @@ def publish_msg(scan_data: List[float], msg:LaserScan, publisher: rospy.Publishe
     publisher.publish(msg)
 
 if __name__ == '__main__':
+    """
+    The output is in [0, 360) 
+    https://github.com/dastels/adafruit_rplidar/blob/7d7f6adff1d078a682d93b654fc26012fcf08d2e/code/rplidar.py#L288-L289
+    """
     NODE_NAME = 'rpi_lidar_a1_node'
     device_address = find_laser_scanner_rpi()
     rospy.init_node(NODE_NAME)
